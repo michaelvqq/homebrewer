@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useId, useMemo } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { Billboard, OrbitControls, Text } from "@react-three/drei";
+import { Billboard, Grid, OrbitControls, Text } from "@react-three/drei";
 import type { HouseSpec } from "@/lib/house/spec";
 import { RoomShell } from "./walls";
 import { Furniture } from "./furniture";
@@ -114,6 +114,20 @@ export function HouseScene({
           <planeGeometry args={[400, 400]} />
           <meshStandardMaterial color="#8fbf6a" roughness={1} />
         </mesh>
+
+        {/* Empty lot: a faint grid so the blank viewport still reads as a space to build in. */}
+        {!spec && (
+          <Grid
+            position={[0, 0.01, 0]}
+            args={[60, 60]}
+            cellSize={1}
+            sectionSize={5}
+            cellColor="#6f9a50"
+            sectionColor="#4f7a36"
+            fadeDistance={45}
+            infiniteGrid
+          />
+        )}
 
         {/* Everything inside this group is in house coordinates. */}
         <group

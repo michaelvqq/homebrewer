@@ -2,7 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Footprints, MessageSquare, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CommunityFeed } from "@/components/community-feed";
 import { getCurrentUser } from "@/lib/auth";
+import { HomeViewport } from "./home-viewport";
 import { NewHouseForm } from "./new-house-form";
 
 // createHouse runs the agents via after(); give them room.
@@ -54,14 +56,22 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center p-8">
-      <div className="w-full max-w-2xl">
-        <h1 className="mb-2 text-center text-3xl font-semibold tracking-tight">What should we build?</h1>
-        <p className="mb-6 text-center text-muted-foreground">
-          Describe a home. An architect agent and an interior designer agent will build it in 3D.
-        </p>
-        <NewHouseForm />
-      </div>
+    <div className="flex h-full min-h-0 w-full flex-1">
+      <section className="relative flex min-w-0 flex-1">
+        <div className="absolute inset-0">
+          <HomeViewport />
+        </div>
+        <div className="pointer-events-none relative flex flex-1 flex-col items-center justify-center p-8">
+          <div className="pointer-events-auto w-full max-w-2xl rounded-xl border bg-background/80 p-6 shadow-sm backdrop-blur">
+            <h1 className="mb-2 text-center text-3xl font-semibold tracking-tight">What should we build?</h1>
+            <p className="mb-6 text-center text-muted-foreground">
+              Describe a home. An architect agent and an interior designer agent will build it in 3D.
+            </p>
+            <NewHouseForm />
+          </div>
+        </div>
+      </section>
+      <CommunityFeed />
     </div>
   );
 }
