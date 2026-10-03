@@ -5,7 +5,7 @@ import { ArrowUp, Loader2 } from "lucide-react";
 import { ModelPicker } from "@/components/model-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { createHouse } from "./h/actions";
 
 const EXAMPLES = [
@@ -16,35 +16,25 @@ const EXAMPLES = [
 
 export function NewHouseForm() {
   const [state, action, pending] = useActionState(createHouse, null);
-  const promptRef = useRef<HTMLTextAreaElement>(null);
+  const promptRef = useRef<HTMLInputElement>(null);
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <div className="rounded-3xl border bg-background shadow-sm transition-[box-shadow] focus-within:ring-[3px] focus-within:ring-ring/30">
-        <Textarea
+      <div className="flex items-center gap-1 rounded-full border bg-background py-1 pl-4 pr-1 shadow-sm transition-[box-shadow] focus-within:ring-[3px] focus-within:ring-ring/30">
+        <Input
           ref={promptRef}
           name="prompt"
           required
           autoFocus
           maxLength={1000}
-          rows={3}
-          placeholder="Describe the house you want… the agents will name it."
+          placeholder="Describe the house you want…"
           aria-label="House description"
-          className="min-h-20 resize-none border-0 bg-transparent px-5 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
-          onKeyDown={(e) => {
-            // Enter sends, Shift+Enter adds a line, like a chat box.
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              e.currentTarget.form?.requestSubmit();
-            }
-          }}
+          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
-        <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          <ModelPicker />
-          <Button type="submit" size="icon" className="rounded-full" aria-label="Design my house" disabled={pending}>
-            {pending ? <Loader2 className="animate-spin" /> : <ArrowUp />}
-          </Button>
-        </div>
+        <ModelPicker className="shrink-0" />
+        <Button type="submit" size="icon" className="shrink-0 rounded-full" aria-label="Design my house" disabled={pending}>
+          {pending ? <Loader2 className="animate-spin" /> : <ArrowUp />}
+        </Button>
       </div>
       {state && !state.ok && <p className="px-2 text-sm text-destructive">{state.message ?? "Something went wrong."}</p>}
       <div className="flex flex-wrap justify-center gap-2">

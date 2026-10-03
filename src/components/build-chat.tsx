@@ -99,27 +99,25 @@ function Chat({ houseId, userId }: { houseId: string; userId: string }) {
       {isOwner ? (
         <form onSubmit={submit} className="p-2">
           {error && <p className="mb-1 px-1 text-xs text-destructive">{error}</p>}
-          <div className="rounded-2xl border bg-background p-1 shadow-xs focus-within:ring-[3px] focus-within:ring-ring/30">
+          <div className="flex items-center gap-0.5 rounded-full border bg-background py-0.5 pl-3 pr-0.5 shadow-xs focus-within:ring-[3px] focus-within:ring-ring/30">
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={300}
               disabled={busy}
-              placeholder={busy ? "Agents are working…" : "Add a plant to the bedroom…"}
-              className="h-9 min-w-0 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              placeholder={busy ? "Agents are working…" : "Add a plant…"}
+              className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <div className="flex items-center justify-between gap-1">
-              <ModelPicker className="-ml-1 max-w-[70%]" />
-              <Button
-                type="submit"
-                size="icon-sm"
-                className="rounded-full"
-                aria-label="Build"
-                disabled={busy || pending || text.trim().length < 2}
-              >
-                <ArrowUp />
-              </Button>
-            </div>
+            <ModelPicker className="max-w-28 shrink-0 px-2" />
+            <Button
+              type="submit"
+              size="icon-sm"
+              className="shrink-0 rounded-full"
+              aria-label="Build"
+              disabled={busy || pending || text.trim().length < 2}
+            >
+              <ArrowUp />
+            </Button>
           </div>
         </form>
       ) : (
