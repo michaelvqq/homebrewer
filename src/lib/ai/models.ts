@@ -5,7 +5,7 @@ export type Provider = (typeof PROVIDER_IDS)[number];
 export const PROVIDERS: Record<Provider, { label: string; models: string[]; keyHint: string }> = {
   anthropic: {
     label: "Anthropic",
-    models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "claude-haiku-4-5"],
+    models: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-haiku-4-5"],
     keyHint: "sk-ant-…",
   },
   openai: { label: "OpenAI", models: ["gpt-6-astra", "gpt-5.5", "gpt-5.4-mini"], keyHint: "sk-…" },

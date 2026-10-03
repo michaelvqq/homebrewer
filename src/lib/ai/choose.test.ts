@@ -14,7 +14,7 @@ test("no user key falls back to the shared key for their provider", () => {
 
 test("shared key never runs a custom model id; it uses the provider default", () => {
   const r = chooseModel({ provider: "anthropic", model: "some-custom-id", userKey: null }, { anthropic: "sk-shared" });
-  assert.equal(r?.model, "claude-sonnet-5-5");
+  assert.equal(r?.model, "claude-opus-5-5");
 });
 
 test("falls back to another provider's shared key when theirs has none", () => {

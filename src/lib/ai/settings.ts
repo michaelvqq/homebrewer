@@ -21,7 +21,7 @@ export async function readSettingsView(supabase: Client): Promise<SettingsView> 
   const keys = (data?.keys ?? {}) as StoredKeys;
   return {
     provider: asProvider(data?.provider),
-    model: data?.model ?? "claude-sonnet-5-5",
+    model: data?.model ?? "claude-opus-5-5",
     savedKeys: { anthropic: keys.anthropic?.last4 ?? null, openai: keys.openai?.last4 ?? null, google: keys.google?.last4 ?? null },
   };
 }
