@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { HouseRoom } from "./house-room";
@@ -8,8 +8,7 @@ export const maxDuration = 300;
 
 export default async function HousePage({ params }: PageProps<"/h/[id]">) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  if (!user) redirect(`/login?next=/h/${id}`);
+  const user = await getCurrentUser(); // optional: shared links work signed out
 
   const supabase = await createClient();
   const { data: house } = await supabase.from("houses").select("*").eq("id", id).maybeSingle();
@@ -18,13 +17,15 @@ export default async function HousePage({ params }: PageProps<"/h/[id]">) {
   const [{ data: comments }, { count }, { data: mine }] = await Promise.all([
     supabase.from("comments").select("*").eq("house_id", id).order("created_at"),
     supabase.from("likes").select("*", { count: "exact", head: true }).eq("house_id", id),
-    supabase.from("likes").select("house_id").eq("house_id", id).eq("user_id", user.id).maybeSingle(),
+    user
+      ? supabase.from("likes").select("house_id").eq("house_id", id).eq("user_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return (
     <HouseRoom
-      me={{ id: user.id, name: user.email?.split("@")[0] ?? "guest" }}
-      isOwner={house.owner_id === user.id}
+      user={user ? { id: user.id, name: user.email?.split("@")[0] ?? "guest" } : null}
+      isOwner={!!user && house.owner_id === user.id}
       initialHouse={house}
       initialComments={comments ?? []}
       initialLikeCount={count ?? 0}
