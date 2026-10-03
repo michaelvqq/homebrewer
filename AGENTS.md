@@ -1,3 +1,13 @@
+# Supabase Select 2026 Hackathon
+
+Solo entry (team of one). Event: Oct 3-4, 2026, onsite in San Francisco. Rules: https://hackathon.supabase.com/hackathon-rules. Theme: unknown as of 2026-10-03. Submission deadline: 5 PM Pacific TODAY, Sat Oct 3, 2026 (confirmed by user). Keep scope tiny.
+
+- All projects must be created solely during the hackathon; no pre-existing projects. Open-source libraries, frameworks and APIs are fine. Commit as we go.
+- Must meaningfully integrate Supabase services (database, auth, storage, edge functions, realtime) to be prize-eligible. Aim for 2-3.
+- Submit: project description, a demo or code, and instructions for running it. Late submissions are not considered.
+- Judging: innovation/creativity, functionality/completeness, UX/design, impact/usefulness. Judges favor builds that actually run with real auth and real data over slideware and mockups, so keep scope small and fully working.
+- IP: we keep ownership; Supabase gets a non-exclusive license for marketing and similar uses.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
