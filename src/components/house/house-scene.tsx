@@ -95,7 +95,7 @@ export function HouseScene({
 
   return (
     <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#c3d6ea] ${onPick ? "cursor-crosshair" : ""}`}>
-      <Canvas shadows="soft" camera={{ fov: 55, near: 0.05, far: 1000, position: [8, 10, 12] }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ fov: 55, near: 0.1, far: 1000, position: [8, 10, 12] }} dpr={[1, 2]}>
         <World clockTime={clockTime} size={bounds.size} />
 
         {/* Everything inside this group is in house coordinates. */}

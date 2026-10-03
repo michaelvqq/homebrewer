@@ -62,12 +62,13 @@ export function World({ clockTime, size }: { clockTime: number; size: number }) 
         shadow-camera-far={dist * 2.5}
       />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* Ground and grid sit a few cm below room floors (y=0.005) so they can't z-fight through them. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, 0]} receiveShadow>
         <planeGeometry args={[1400, 1400]} />
         <meshStandardMaterial color="#6d8a49" roughness={1} />
       </mesh>
       <Grid
-        position={[0, 0.003, 0]}
+        position={[0, -0.02, 0]}
         args={[120, 120]}
         cellSize={1}
         cellThickness={1}
