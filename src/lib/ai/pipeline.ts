@@ -5,6 +5,7 @@ import { roomAt } from "@/lib/house/edits";
 import { fromLlmFurnishing, furnishingLlmSchema, layoutLlmSchema, sanitizeSpec, type HouseSpec } from "@/lib/house/spec";
 import { ARCHITECT_SYSTEM, DESIGNER_SYSTEM, architectPrompt, designerPrompt } from "./prompts";
 import { routeEdit, type Focus } from "./router";
+import { nameHouse } from "./title";
 import { loadUserModel } from "./settings";
 
 type HouseUpdate = Database["public"]["Tables"]["houses"]["Update"];
@@ -35,6 +36,7 @@ export type PipelineArgs = {
 export async function runPipeline({ supabase, houseId, prompt, current, change }: PipelineArgs): Promise<boolean> {
   const update = (patch: HouseUpdate) =>
     supabase.from("houses").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", houseId);
+  let titling: PromiseLike<unknown> | undefined;
 
   try {
     const loaded = await loadUserModel(supabase);
@@ -43,6 +45,9 @@ export async function runPipeline({ supabase, houseId, prompt, current, change }
       await say(supabase, houseId, "agent", "I need an API key to work. Add one in Settings, then hit Retry.");
       return false;
     }
+
+    // A first build also gets a real name, chosen alongside the architect and pushed live via realtime.
+    if (!current) titling = nameHouse(loaded.model, prompt).then((title) => (title ? update({ title }) : undefined));
 
     await update({ status: "generating", status_message: `Architect is ${change ? "reworking" : "laying out"} the rooms…` });
     const { output: layout } = await generateText({
@@ -71,6 +76,8 @@ export async function runPipeline({ supabase, houseId, prompt, current, change }
     await update({ status: "error", status_message: `Agents hit a problem: ${message}` });
     await say(supabase, houseId, "agent", `Something went wrong: ${message}`);
     return false;
+  } finally {
+    await titling; // keep the after() task alive until the rename lands
   }
 }
 

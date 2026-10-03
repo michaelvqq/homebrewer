@@ -5,7 +5,6 @@ import { Loader2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createHouse } from "./h/actions";
 
@@ -23,15 +22,22 @@ export function NewHouseForm() {
     <Card>
       <CardContent>
         <form action={action} className="flex flex-col gap-3">
-          <Input name="title" required maxLength={80} placeholder="Name your house" aria-label="House name" />
           <Textarea
             ref={promptRef}
             name="prompt"
             required
+            autoFocus
             maxLength={1000}
-            rows={3}
-            placeholder="Describe the house you want…"
+            rows={4}
+            placeholder="Describe the house you want… the agents will name it."
             aria-label="House description"
+            onKeyDown={(e) => {
+              // Enter sends, Shift+Enter adds a line, like a chat box.
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
           />
           <div className="flex flex-wrap gap-2">
             {EXAMPLES.map((ex) => (

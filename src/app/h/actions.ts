@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { runChange, runPipeline, say } from "@/lib/ai/pipeline";
+import { provisionalTitle } from "@/lib/ai/title";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema } from "@/lib/house/spec";
 import { isStaleGenerating, pickRetry } from "@/lib/house/sync";
@@ -14,10 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 export type ActionError = "unauthorized" | "validation" | "not_found" | "busy" | "server";
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: ActionError; message?: string };
 
-const createSchema = z.object({
-  title: z.string().trim().min(1).max(80),
-  prompt: z.string().trim().min(1).max(1000),
-});
+const createSchema = z.object({ prompt: z.string().trim().min(1).max(1000) });
 const id = z.uuid();
 const commentSchema = z.object({
   houseId: id,
@@ -53,13 +51,14 @@ function generateLater(
 export async function createHouse(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "unauthorized" };
-  const parsed = createSchema.safeParse({ title: formData.get("title"), prompt: formData.get("prompt") });
-  if (!parsed.success) return { ok: false, error: "validation", message: "Give your house a name and a description." };
+  const parsed = createSchema.safeParse({ prompt: formData.get("prompt") });
+  if (!parsed.success) return { ok: false, error: "validation", message: "Describe the house you want." };
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("houses")
-    .insert({ ...parsed.data, owner_id: user.id, status: "generating", status_message: "Agents are getting ready…" })
+    // The agents rename it during the first build; until then the prompt stands in.
+    .insert({ ...parsed.data, title: provisionalTitle(parsed.data.prompt), owner_id: user.id, status: "generating", status_message: "Agents are getting ready…" })
     .select("id")
     .single();
   if (error || !data) {

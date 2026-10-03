@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { FolderInput, MoreHorizontal, Pin, PinOff, Trash2 } from "lucide-react";
 import { deleteHouse, organizeHouse } from "@/app/h/actions";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 type Project = { id: string; title: string; status: string; pinned: boolean; group_name: string | null };
@@ -29,8 +30,25 @@ type Project = { id: string; title: string; status: string; pinned: boolean; gro
 const DOT: Record<string, string> = { generating: "bg-amber-500 animate-pulse", error: "bg-red-500", ready: "bg-green-500" };
 
 // Pinned first, then named groups, then everything else as "Recent". Shrinks when a build chat is open below.
-export function ProjectList({ houses }: { houses: Project[] }) {
+export function ProjectList({ userId, houses }: { userId: string; houses: Project[] }) {
   const onHouse = usePathname().startsWith("/h/");
+  const router = useRouter();
+
+  // The agents name a new house mid-build; refresh the list when a title changes.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`projects:${userId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "houses", filter: `owner_id=eq.${userId}` }, (p) => {
+        const next = p.new as Partial<Project> & { id: string };
+        const known = houses.find((h) => h.id === next.id);
+        if (next.title && known && known.title !== next.title) router.refresh();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, houses, router]);
   const pinned = houses.filter((h) => h.pinned);
   const groups = [...new Set(houses.filter((h) => !h.pinned && h.group_name).map((h) => h.group_name!))].sort();
   const recent = houses.filter((h) => !h.pinned && !h.group_name);

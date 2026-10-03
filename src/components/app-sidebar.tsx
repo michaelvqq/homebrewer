@@ -30,7 +30,7 @@ export async function AppSidebar({ user }: { user: { id: string; email?: string 
           </Link>
         </Button>
       </div>
-      <ProjectList houses={houses ?? []} />
+      <ProjectList userId={user.id} houses={houses ?? []} />
       <BuildChat userId={user.id} />
       <Separator className="bg-sidebar-border" />
       <div className="flex flex-col gap-1 p-3">
