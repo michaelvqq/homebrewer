@@ -54,10 +54,17 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const spec = parsed?.success ? parsed.data : null;
 
   const [showFurniture, setShowFurniture] = useState(true);
-  // Storey cutaway: "all", or a floor number (that floor and the ones below; walk mode walks on it).
-  const [floorView, setFloorView] = useState<"all" | number>("all");
+  // Layers: the roof and each storey can be switched off to look inside. Walk mode walks on the lowest shown storey.
+  const [hiddenFloors, setHiddenFloors] = useState<number[]>([]);
+  const [showRoof, setShowRoof] = useState(true);
   const floors = spec ? levels(spec) : [0];
-  const visibleFloor = floorView === "all" || !floors.includes(floorView) ? null : floorView;
+  const shownFloors = floors.filter((f) => !hiddenFloors.includes(f));
+  const walkFloor = shownFloors[0] ?? 0;
+  const layers = [...(showRoof ? ["roof"] : []), ...shownFloors.map((f) => `f${f}`)];
+  function setLayers(next: string[]) {
+    setShowRoof(next.includes("roof"));
+    setHiddenFloors(floors.filter((f) => !next.includes(`f${f}`)));
+  }
   const [clockTime, setClockTime] = useState(14); // per-viewer time of day, 0-24h
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
   const [panelOpen, setPanelOpen] = useState(true);
@@ -134,7 +141,9 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
             spec={spec}
             showFurniture={showFurniture}
             clockTime={clockTime}
-            visibleFloor={visibleFloor}
+            hiddenFloors={hiddenFloors}
+            showRoof={showRoof}
+            walkFloor={walkFloor}
             mode={mode}
             avatars={room.avatars}
             onMove={room.sendMove}
@@ -176,25 +185,15 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
                 <ToggleGroupItem value="orbit" className="px-3">Overview</ToggleGroupItem>
                 <ToggleGroupItem value="walk" className="px-3">Walk</ToggleGroupItem>
               </ToggleGroup>
-              {floors.length > 1 && (
-                <>
-                  <Separator orientation="vertical" className="h-5" />
-                  <ToggleGroup
-                    type="single"
-                    size="sm"
-                    value={visibleFloor === null ? "all" : String(visibleFloor)}
-                    onValueChange={(v) => v && setFloorView(v === "all" ? "all" : Number(v))}
-                    aria-label="Floors"
-                  >
-                    <ToggleGroupItem value="all" className="px-3">All</ToggleGroupItem>
-                    {floors.map((f) => (
-                      <ToggleGroupItem key={f} value={String(f)} className="px-3" aria-label={`Floor ${f + 1}`}>
-                        {f === 0 ? "1F" : `${f + 1}F`}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </>
-              )}
+              <Separator orientation="vertical" className="h-5" />
+              <ToggleGroup type="multiple" size="sm" value={layers} onValueChange={setLayers} disabled={!spec} aria-label="Layers">
+                <ToggleGroupItem value="roof" className="px-3">Roof</ToggleGroupItem>
+                {[...floors].reverse().map((f) => (
+                  <ToggleGroupItem key={f} value={`f${f}`} className="px-3" aria-label={`Floor ${f + 1}`}>
+                    {f + 1}F
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
               <Separator orientation="vertical" className="h-5" />
               <Label className="cursor-pointer pr-2 text-sm font-normal">
                 <Switch size="sm" checked={showFurniture} onCheckedChange={setShowFurniture} disabled={!spec} />
