@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { signIn, signUp } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [signInState, signInAction, signingIn] = useActionState(signIn, null);
   const [signUpState, signUpAction, signingUp] = useActionState(signUp, null);
@@ -13,6 +13,7 @@ export function LoginForm() {
 
   return (
     <form action={mode === "signin" ? signInAction : signUpAction} className="flex w-full max-w-sm flex-col gap-3">
+      <input type="hidden" name="next" value={next ?? "/"} />
       <h1 className="text-2xl font-semibold">{mode === "signin" ? "Sign in" : "Create an account"}</h1>
 
       <input name="email" type="email" required placeholder="you@example.com" autoComplete="email"

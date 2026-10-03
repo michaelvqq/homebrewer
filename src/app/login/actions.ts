@@ -9,6 +9,12 @@ import { createClient } from "@/lib/supabase/server";
 export type AuthError = "validation" | "invalid_credentials" | "server";
 export type AuthState = { ok: false; error: AuthError; message?: string } | { ok: true; message: string } | null;
 
+// Only same-site relative paths, so ?next= can't redirect off-site.
+function nextPath(formData: FormData) {
+  const next = formData.get("next");
+  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
 function readCredentials(formData: FormData) {
   return credentialsSchema.safeParse({
     email: formData.get("email"),
@@ -28,7 +34,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(nextPath(formData));
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -50,7 +56,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   if (!data.session) return { ok: true, message: "Check your email to confirm your account." };
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(nextPath(formData));
 }
 
 export async function signOut() {
