@@ -48,8 +48,8 @@ function assertAllRequired(node: unknown, path = "$"): void {
 
 test("LLM-facing schemas are OpenAI-strict compatible (all properties required)", async () => {
   const { z } = await import("zod");
-  const { layoutSchema, furnishingLlmSchema } = await import("./spec");
-  assertAllRequired(z.toJSONSchema(layoutSchema));
+  const { layoutLlmSchema, furnishingLlmSchema } = await import("./spec");
+  assertAllRequired(z.toJSONSchema(layoutLlmSchema));
   assertAllRequired(z.toJSONSchema(furnishingLlmSchema));
 });
 

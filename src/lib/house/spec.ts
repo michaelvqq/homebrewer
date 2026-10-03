@@ -2,11 +2,15 @@ import { z } from "zod";
 import { FURNITURE_TYPES } from "./catalog";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+// Outdoor zones (backyard, patio, garden, driveway…) have a ground surface but no walls.
+// Stored specs from before outdoor zones have no kind and are indoor.
+const roomKind = z.enum(["indoor", "outdoor"]);
 export const roomSchema = z.object({
-  id: z.string().min(1), name: z.string().min(1),
-  x: z.number(), z: z.number(), width: z.number().min(1.5).max(20), depth: z.number().min(1.5).max(20),
+  id: z.string().min(1), name: z.string().min(1), kind: roomKind.optional(),
+  x: z.number(), z: z.number(), width: z.number().min(1.5).max(30), depth: z.number().min(1.5).max(30),
   wallColor: hex, floorColor: hex,
 });
+export const isOutdoor = (room: { kind?: string }) => room.kind === "outdoor";
 export const openingSchema = z.object({
   roomId: z.string(), wall: z.enum(["n","s","e","w"]), offset: z.number().min(0), width: z.number().min(0.6).max(4),
 });
@@ -16,7 +20,11 @@ export const furnitureSchema = z.object({
   color: hex.optional(),
 });
 export const layoutSchema = z.object({
-  rooms: z.array(roomSchema).min(1).max(12), doors: z.array(openingSchema), windows: z.array(openingSchema),
+  rooms: z.array(roomSchema).min(1).max(16), doors: z.array(openingSchema), windows: z.array(openingSchema),
+});
+// What the architect is asked to produce: kind is required (OpenAI strict mode needs every property required).
+export const layoutLlmSchema = layoutSchema.extend({
+  rooms: z.array(roomSchema.extend({ kind: roomKind })).min(1).max(16),
 });
 export const furnishingSchema = z.object({ furniture: z.array(furnitureSchema).max(80) });
 export const houseSpecSchema = layoutSchema.extend(furnishingSchema.shape);
@@ -40,8 +48,37 @@ export function sanitizeSpec(spec: HouseSpec): HouseSpec {
   };
   return {
     rooms: spec.rooms,
-    doors: spec.doors.filter((d) => rooms.has(d.roomId)),
-    windows: spec.windows.filter((w) => rooms.has(w.roomId)),
+    doors: spec.doors.flatMap((d) => {
+      const room = rooms.get(d.roomId);
+      if (!room) return [];
+      if (!isOutdoor(room)) return [d];
+      const moved = toIndoorWall(spec.rooms, room, d);
+      return moved ? [moved] : [];
+    }),
+    windows: spec.windows.filter((w) => rooms.has(w.roomId) && !isOutdoor(rooms.get(w.roomId)!)),
     furniture: spec.furniture.filter(inside),
   };
+}
+
+type Room = HouseSpec["rooms"][number];
+type Opening = HouseSpec["doors"][number];
+const OPPOSITE = { n: "s", s: "n", e: "w", w: "e" } as const;
+const EPS = 0.05;
+
+// Outdoor zones have no walls, so a door on one belongs on the indoor wall it touches (e.g. the back door).
+function toIndoorWall(all: Room[], zone: Room, door: Opening): Opening | null {
+  const alongX = door.wall === "n" || door.wall === "s";
+  const line = door.wall === "n" ? zone.z : door.wall === "s" ? zone.z + zone.depth : door.wall === "w" ? zone.x : zone.x + zone.width;
+  const start = (alongX ? zone.x : zone.z) + door.offset;
+  const wall = OPPOSITE[door.wall];
+  for (const r of all) {
+    if (isOutdoor(r)) continue;
+    const rLine = wall === "n" ? r.z : wall === "s" ? r.z + r.depth : wall === "w" ? r.x : r.x + r.width;
+    const rStart = alongX ? r.x : r.z;
+    const rLen = alongX ? r.width : r.depth;
+    if (Math.abs(rLine - line) < EPS && start >= rStart - EPS && start + door.width <= rStart + rLen + EPS) {
+      return { roomId: r.id, wall, offset: Math.max(0, start - rStart), width: door.width };
+    }
+  }
+  return null;
 }

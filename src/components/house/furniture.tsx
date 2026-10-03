@@ -138,6 +138,88 @@ function Parts({ type, color }: { type: FurnitureType; color: string }) {
       );
     case "rug":
       return <Box pos={[0, 0.02, 0]} size={[w, h, d]} color={color} />;
+    case "tree":
+      return (
+        <>
+          <Cyl pos={[0, 0.9, 0]} r={0.16} rTop={0.12} h={1.8} color="#6b4a2f" />
+          <mesh position={[0, 2.6, 0]} castShadow>
+            <sphereGeometry args={[w / 2, 20, 16]} />
+            <meshStandardMaterial color={color} roughness={0.85} />
+          </mesh>
+          <mesh position={[0, 3.6, 0]} castShadow>
+            <sphereGeometry args={[w / 2.8, 20, 16]} />
+            <meshStandardMaterial color={shade(color, 0.12)} roughness={0.85} />
+          </mesh>
+        </>
+      );
+    case "bush":
+      return (
+        <mesh position={[0, h / 2, 0]} scale={[1, h / w, 1]} castShadow>
+          <sphereGeometry args={[w / 2, 18, 14]} />
+          <meshStandardMaterial color={color} roughness={0.9} />
+        </mesh>
+      );
+    case "flowerbed":
+      return (
+        <>
+          <Box pos={[0, 0.12, 0]} size={[w, 0.24, d]} color="#7a5232" />
+          <Box pos={[0, 0.27, 0]} size={[w - 0.12, 0.08, d - 0.12]} color="#4f7a35" />
+          {[-0.35, -0.12, 0.12, 0.35].map((t) => (
+            <mesh key={t} position={[t * w, h, 0]} castShadow>
+              <sphereGeometry args={[0.09, 10, 8]} />
+              <meshStandardMaterial color={color} />
+            </mesh>
+          ))}
+        </>
+      );
+    case "lounger":
+      return (
+        <>
+          <Box pos={[0, 0.28, 0.2]} size={[w, 0.08, d - 0.5]} color={color} />
+          <mesh position={[0, 0.5, -d / 2 + 0.3]} rotation={[-0.6, 0, 0]} castShadow>
+            <boxGeometry args={[w, 0.08, 0.7]} />
+            <meshStandardMaterial color={color} roughness={0.7} />
+          </mesh>
+          <Legs w={w} d={d} h={0.24} color="#8a8a8a" size={0.04} />
+        </>
+      );
+    case "grill":
+      return (
+        <>
+          <Box pos={[0, 0.8, 0]} size={[w, 0.35, d]} color={color} />
+          <Box pos={[0, 1.02, -0.05]} size={[w, 0.12, d - 0.1]} color={shade(color, 0.15)} />
+          <Legs w={w} d={d} h={0.62} color={dark} size={0.05} />
+        </>
+      );
+    case "pool":
+      return (
+        <>
+          <Box pos={[0, 0.06, 0]} size={[w + 0.5, 0.12, d + 0.5]} color="#e8e1d3" />
+          <Box pos={[0, 0.1, 0]} size={[w, 0.06, d]} color={color} opacity={0.85} />
+        </>
+      );
+    case "fence": {
+      const pickets = Math.max(2, Math.round(w / 0.25));
+      return (
+        <>
+          <Box pos={[0, h * 0.75, 0]} size={[w, 0.08, d]} color={color} />
+          <Box pos={[0, h * 0.3, 0]} size={[w, 0.08, d]} color={color} />
+          {Array.from({ length: pickets }, (_, i) => (
+            <Box key={i} pos={[-w / 2 + (i + 0.5) * (w / pickets), h / 2, 0]} size={[0.09, h, d]} color={shade(color, 0.08)} />
+          ))}
+        </>
+      );
+    }
+    case "umbrella":
+      return (
+        <>
+          <Cyl pos={[0, h / 2, 0]} r={0.03} h={h} color="#d8d8d8" />
+          <mesh position={[0, h - 0.15, 0]} castShadow>
+            <coneGeometry args={[w / 2, 0.45, 8]} />
+            <meshStandardMaterial color={color} roughness={0.7} />
+          </mesh>
+        </>
+      );
     default:
       return <Box pos={[0, h / 2, 0]} size={[w, h, d]} color={color} />;
   }

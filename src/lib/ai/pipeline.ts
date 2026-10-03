@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { roomAt } from "@/lib/house/edits";
-import { fromLlmFurnishing, furnishingLlmSchema, layoutSchema, sanitizeSpec, type HouseSpec } from "@/lib/house/spec";
+import { fromLlmFurnishing, furnishingLlmSchema, layoutLlmSchema, sanitizeSpec, type HouseSpec } from "@/lib/house/spec";
 import { ARCHITECT_SYSTEM, DESIGNER_SYSTEM, architectPrompt, designerPrompt } from "./prompts";
 import { routeEdit, type Focus } from "./router";
 import { loadUserModel } from "./settings";
@@ -49,7 +49,7 @@ export async function runPipeline({ supabase, houseId, prompt, current, change }
       model: loaded.model,
       system: ARCHITECT_SYSTEM,
       prompt: architectPrompt(prompt, current, change),
-      output: Output.object({ schema: layoutSchema }),
+      output: Output.object({ schema: layoutLlmSchema }),
     });
 
     await update({ status_message: "Interior designer is furnishing…" });

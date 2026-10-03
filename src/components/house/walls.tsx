@@ -1,6 +1,6 @@
 "use client";
 
-import type { HouseSpec } from "@/lib/house/spec";
+import { isOutdoor, type HouseSpec } from "@/lib/house/spec";
 
 export const WALL_HEIGHT = 2.6;
 const WALL_THICKNESS = 0.1;
@@ -80,6 +80,15 @@ function Wall({ room, side, doors, windows }: { room: Room; side: Side; doors: O
 
 export function RoomShell({ room, spec }: { room: Room; spec: HouseSpec }) {
   const sides: Side[] = ["n", "s", "e", "w"];
+  if (isOutdoor(room)) {
+    // Ground surface only (lawn, deck, patio, driveway), just above the grass and below indoor floors.
+    return (
+      <mesh position={[room.x + room.width / 2, 0.005, room.z + room.depth / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[room.width, room.depth]} />
+        <meshStandardMaterial color={room.floorColor} roughness={0.95} />
+      </mesh>
+    );
+  }
   return (
     <group>
       <mesh

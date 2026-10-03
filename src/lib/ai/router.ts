@@ -1,7 +1,7 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { FURNITURE_TYPES, type FurnitureType } from "@/lib/house/catalog";
 import { PALETTE, addFurniture, recolorRoom, removeFurniture, roomAt } from "@/lib/house/edits";
-import type { HouseSpec } from "@/lib/house/spec";
+import { isOutdoor, type HouseSpec } from "@/lib/house/spec";
 
 // Picks one of a fixed set of options. This is the seam where a faster decision
 // endpoint (e.g. OpenAI's Decisions API) can be swapped in.
@@ -24,7 +24,7 @@ function describe(spec: HouseSpec) {
   return spec.rooms
     .map((r) => {
       const items = spec.furniture.filter((f) => f.roomId === r.id).map((f) => f.type);
-      return `- ${r.name}: ${items.length ? items.join(", ") : "empty"}`;
+      return `- ${r.name}${isOutdoor(r) ? " (outdoor)" : ""}: ${items.length ? items.join(", ") : "empty"}`;
     })
     .join("\n");
 }
@@ -39,7 +39,7 @@ export async function routeEdit(model: LanguageModel, spec: HouseSpec, request: 
   const context = `House rooms and furniture:\n${describe(spec)}\n\nRequest${where}: "${request}"`;
   const op = await decide(
     model,
-    `${context}\n\nWhich single operation best fulfils the request? Use "redesign layout" for anything that adds, removes or resizes rooms, changes doors or windows, or needs several different changes.`,
+    `${context}\n\nWhich single operation best fulfils the request? Use "redesign layout" for anything that adds, removes or resizes rooms or outdoor areas (a backyard, patio, deck, garden, pool, lawn or driveway that isn't listed above), changes doors or windows, or needs several different changes.`,
     [...OPS],
   );
 
