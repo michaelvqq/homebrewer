@@ -117,14 +117,15 @@ function Wall({ room, side, doors, windows, exterior }: { room: Room; side: Side
 
   gaps.forEach((g, i) => {
     const color = g.kind === "window" ? TRIM : CASING;
-    const deep = WALL_THICKNESS + 0.06;
+    // Frames overlap the opening by 3 cm so they cover the cut wall and siding ends (no flicker).
+    const deep = WALL_THICKNESS + 0.08;
     const bottom = g.kind === "window" ? SILL : 0;
-    parts.push(<Block key={`gl${i}`} {...box(g.t0 - 0.06, g.t0, bottom, HEADER + 0.06, deep)} color={color} />);
-    parts.push(<Block key={`gr${i}`} {...box(g.t1, g.t1 + 0.06, bottom, HEADER + 0.06, deep)} color={color} />);
-    parts.push(<Block key={`gh${i}`} {...box(g.t0 - 0.06, g.t1 + 0.06, HEADER, HEADER + 0.06, deep)} color={color} />);
+    parts.push(<Block key={`gl${i}`} {...box(g.t0 - 0.06, g.t0 + 0.03, bottom, HEADER + 0.06, deep)} color={color} />);
+    parts.push(<Block key={`gr${i}`} {...box(g.t1 - 0.03, g.t1 + 0.06, bottom, HEADER + 0.06, deep)} color={color} />);
+    parts.push(<Block key={`gh${i}`} {...box(g.t0 - 0.06, g.t1 + 0.06, HEADER - 0.03, HEADER + 0.06, deep)} color={color} />);
     if (g.kind === "window") {
       const mid = (g.t0 + g.t1) / 2;
-      parts.push(<Block key={`gs${i}`} {...box(g.t0 - 0.1, g.t1 + 0.1, SILL - 0.05, SILL, WALL_THICKNESS + 0.12)} color={TRIM} />);
+      parts.push(<Block key={`gs${i}`} {...box(g.t0 - 0.1, g.t1 + 0.1, SILL - 0.05, SILL + 0.03, WALL_THICKNESS + 0.12)} color={TRIM} />);
       parts.push(<Block key={`gv${i}`} {...box(mid - 0.02, mid + 0.02, SILL, HEADER, 0.05)} color={TRIM} />);
       parts.push(<Block key={`gm${i}`} {...box(g.t0, g.t1, (SILL + HEADER) / 2 - 0.02, (SILL + HEADER) / 2 + 0.02, 0.05)} color={TRIM} />);
     }
