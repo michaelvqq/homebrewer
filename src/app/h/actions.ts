@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { runPipeline } from "@/lib/ai/pipeline";
+import { runChange, runPipeline } from "@/lib/ai/pipeline";
 import { houseSpecSchema } from "@/lib/house/spec";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,14 +23,13 @@ const commentSchema = z.object({ houseId: id, body: z.string().trim().min(1).max
 function generateLater(houseId: string, prompt: string, opts: { current?: unknown; change?: string; commentId?: string } = {}) {
   after(async () => {
     const supabase = await createClient();
-    const current = opts.current ? houseSpecSchema.safeParse(opts.current) : null;
-    const ok = await runPipeline({
-      supabase,
-      houseId,
-      prompt,
-      current: current?.success ? current.data : undefined,
-      change: opts.change,
-    });
+    const parsed = opts.current ? houseSpecSchema.safeParse(opts.current) : null;
+    const current = parsed?.success ? parsed.data : undefined;
+    // Changes to an existing house go through the router (instant edit or full redesign).
+    const ok =
+      current && opts.change
+        ? await runChange({ supabase, houseId, prompt, current, change: opts.change })
+        : await runPipeline({ supabase, houseId, prompt });
     if (ok && opts.commentId) await supabase.from("comments").update({ status: "applied" }).eq("id", opts.commentId);
   });
 }
@@ -53,7 +52,7 @@ export async function createHouse(_prev: ActionResult | null, formData: FormData
   }
 
   generateLater(data.id, parsed.data.prompt);
-  revalidatePath("/");
+  revalidatePath("/", "layout"); // sidebar project list
   redirect(`/h/${data.id}`);
 }
 
@@ -161,4 +160,21 @@ export async function toggleLike(houseId: unknown): Promise<ActionResult<{ liked
     return { ok: false, error: "server" };
   }
   return { ok: true, data: { liked: !existing } };
+}
+
+// Live build bar: the owner types an edit and it's routed to an instant change or a full redesign.
+export async function liveEdit(input: unknown): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "unauthorized" };
+  const parsed = z.object({ houseId: id, text: z.string().trim().min(2).max(300) }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "validation", message: "Describe the change in a few words." };
+
+  const { supabase, house, exists } = await ownedHouse(parsed.data.houseId, user.id);
+  if (!house) return { ok: false, error: exists ? "unauthorized" : "not_found" };
+  if (house.status === "generating") return { ok: false, error: "busy", message: "Wait for the current change to finish." };
+  if (!house.spec) return { ok: false, error: "validation", message: "The house isn't built yet." };
+
+  await supabase.from("houses").update({ status: "generating", status_message: "Router is reading your edit…" }).eq("id", house.id);
+  generateLater(house.id, house.prompt, { current: house.spec, change: parsed.data.text });
+  return { ok: true, data: undefined };
 }

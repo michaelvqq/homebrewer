@@ -8,8 +8,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect(target?.startsWith("/") && !target.startsWith("//") ? target : "/");
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-8">
+    <div className="flex flex-1 items-center justify-center p-8">
       <LoginForm next={target} />
-    </main>
+    </div>
   );
 }

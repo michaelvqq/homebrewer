@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SettingsButton } from "@/components/settings-dialog";
+import { AppSidebar } from "@/components/app-sidebar";
 import { getCurrentUser } from "@/lib/auth";
-import { signOut } from "./login/actions";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -19,20 +18,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <header className="flex h-[49px] shrink-0 items-center gap-4 border-b border-neutral-200 px-4 dark:border-neutral-800">
-          <Link href="/" className="font-semibold">Homecraft</Link>
-          {user && (
-            <div className="ml-auto flex items-center gap-4">
-              <span className="text-sm text-neutral-500">{user.email}</span>
-              <SettingsButton />
-              <form action={signOut}>
-                <button className="text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white">Sign out</button>
-              </form>
-            </div>
-          )}
-        </header>
-        {children}
+      <body className="h-full">
+        {user ? (
+          <div className="flex h-screen">
+            <AppSidebar user={user} />
+            <main className="flex min-w-0 flex-1 flex-col overflow-auto">{children}</main>
+          </div>
+        ) : (
+          <div className="flex h-screen flex-col">
+            <header className="flex h-12 shrink-0 items-center border-b border-neutral-200 px-4 dark:border-neutral-800">
+              <Link href="/" className="font-semibold tracking-tight">Homecraft</Link>
+              <Link href="/login" className="ml-auto text-sm font-medium">Sign in</Link>
+            </header>
+            <main className="flex min-h-0 flex-1 flex-col overflow-auto">{children}</main>
+          </div>
+        )}
       </body>
     </html>
   );
