@@ -7,6 +7,7 @@ Homebrewer turns a text prompt into a furnished 3D house you can walk through. T
 Built solo for the Supabase Select 2026 Hackathon.
 
 **Live demo:** https://supabase-hackathon-eight.vercel.app
+**Code:** https://github.com/michaelvqq/homebrewer
 
 ## What you can do
 
@@ -19,6 +20,7 @@ Built solo for the Supabase Select 2026 Hackathon.
 - **Pinned suggestions:** visitors click a spot in the 3D world and describe a change ("a reading chair here"). The pin and its room go to the agents as context.
 - **Comment-driven redesign:** the owner approves a suggestion, and the agents rework the house live for every viewer.
 - **Bring your own model:** pick Anthropic, OpenAI (including GPT-6 Astra) or Google and any model in Settings. Your API key is encrypted at rest (AES-256-GCM) and never sent back to the browser.
+- **Demo keys:** if you haven't saved a key, the app falls back to shared demo keys when the host has configured them, so you can try it without any setup. Shared keys only run catalog models.
 
 ## How Supabase is used
 
@@ -36,7 +38,7 @@ Built solo for the Supabase Select 2026 Hackathon.
 2. **Architect** (`generateText` + `Output.object` with a zod schema, via the Vercel AI SDK) returns rooms, doors and windows on a meter grid.
 3. **Interior designer** returns furniture from a fixed 12-item catalog, placed inside rooms.
 4. The spec is validated and sanitized (unknown types are rejected, and out-of-room items dropped), then saved. Each step writes a status message to the row, so every viewer sees progress through Realtime.
-5. A redesign sends the current spec plus the approved comment through the same pipeline. If the comment is pinned, the agents also get the exact spot and its room. If the pipeline fails, the previous house stays visible and the owner can retry.
+5. A redesign sends the current spec plus the approved comment through the same pipeline. If the comment is pinned, the agents also get the exact spot and its room. If the pipeline fails, the previous house stays visible and the owner can retry. Retry replays the latest change request (an approved comment or a build-chat edit) on the current house, and a house stuck in `generating` for over 5 minutes, for example after a killed serverless function, can be retried too.
 
 **Routing for realtime building.** A build-chat message or an approved suggestion first goes to a router (`decide()` in `src/lib/ai/router.ts`, built on `Output.choice`). It picks one of: add furniture, remove furniture, recolor walls, recolor floor, or redesign the layout. The first four are deterministic edits to the spec (grid placement with no overlaps, near the pin when there is one) and show up for every viewer instantly. Only "redesign layout" runs the full two-agent pipeline. `decide()` is the single seam where a provider-native decisions endpoint can be plugged in.
 
@@ -53,21 +55,24 @@ The 3D view is rendered with react-three-fiber from the JSON spec.
 Requires Node 22+ and the Supabase CLI.
 
 ```bash
+git clone https://github.com/michaelvqq/homebrewer.git && cd homebrewer
 npm install
 cp .env.example .env.local
 # Fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY from your Supabase project,
 # and set KEY_ENCRYPTION_SECRET to the output of: openssl rand -base64 32
+# Optional: SHARED_ANTHROPIC_API_KEY / SHARED_OPENAI_API_KEY / SHARED_GOOGLE_API_KEY give users without
+# their own key a demo fallback.
 
 supabase link --project-ref <your-project-ref>
 supabase db push          # applies supabase/migrations
 
 npm run dev               # http://localhost:3000
-npm test                  # spec, edit and encryption tests
+npm test                  # spec, edit, model-choice, sync and encryption tests
 ```
 
 In the Supabase dashboard, turn off **Authentication → Email → Confirm email** so new accounts can sign in right away.
 
-Then sign up, open **Settings**, choose a provider and model, paste your API key, and describe a house.
+Then sign up and describe a house. Open **Settings** to choose a provider and model and paste your own API key, or skip it if the shared demo keys are set.
 
 ## Stack
 
