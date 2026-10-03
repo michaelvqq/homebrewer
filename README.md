@@ -76,4 +76,4 @@ Then sign up and describe a house. Open **Settings** to choose a provider and mo
 
 ## Stack
 
-Next.js 16 (App Router, server actions), Supabase, Tailwind CSS v4, Vercel AI SDK v7, three.js with react-three-fiber and drei, zod.
+Next.js 16 (App Router, server actions), Supabase, Tailwind CSS v4 with shadcn/ui, Vercel AI SDK v7, three.js with react-three-fiber and drei, zod.
