@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { FolderInput, MoreHorizontal, Pin, PinOff } from "lucide-react";
-import { organizeHouse } from "@/app/h/actions";
+import { FolderInput, MoreHorizontal, Pin, PinOff, Trash2 } from "lucide-react";
+import { deleteHouse, organizeHouse } from "@/app/h/actions";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,8 +59,25 @@ function Section({ title, items, groups }: { title: string; items: Project[]; gr
 
 function ProjectRow({ house }: { house: Project; groups: string[] }) {
   const active = usePathname() === `/h/${house.id}`;
+  const router = useRouter();
   const [editingGroup, setEditingGroup] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [deleting, startDelete] = useTransition();
+
+  const remove = () =>
+    startDelete(async () => {
+      setDeleteError(null);
+      const r = await deleteHouse(house.id);
+      if (!r.ok) {
+        setDeleteError(r.message ?? "Could not delete the house.");
+        return;
+      }
+      setConfirmDelete(false);
+      if (active) router.push("/");
+      router.refresh();
+    });
 
   const organize = (patch: { pinned?: boolean; groupName?: string | null }) =>
     startTransition(async () => {
@@ -119,8 +145,32 @@ function ProjectRow({ house }: { house: Project; groups: string[] }) {
             <FolderInput />
             Move to group…
           </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
+            <Trash2 />
+            Delete
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <Dialog open={confirmDelete} onOpenChange={(open) => !deleting && setConfirmDelete(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete “{house.title}”?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the house with its suggestions, likes and build chat. It can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={deleting}>Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={remove} disabled={deleting}>
+              <Trash2 />
+              {deleting ? "Deleting…" : "Delete house"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

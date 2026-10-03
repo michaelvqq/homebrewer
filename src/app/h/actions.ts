@@ -258,3 +258,22 @@ export async function organizeHouse(input: unknown): Promise<ActionResult> {
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
+
+// Permanently deletes a house; comments, likes and build chat cascade.
+export async function deleteHouse(houseId: unknown): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "unauthorized" };
+  const parsedId = id.safeParse(houseId);
+  if (!parsedId.success) return { ok: false, error: "validation" };
+
+  const { supabase, house, exists } = await ownedHouse(parsedId.data, user.id);
+  if (!house) return { ok: false, error: exists ? "unauthorized" : "not_found" };
+
+  const { error } = await supabase.from("houses").delete().eq("id", house.id).eq("owner_id", user.id);
+  if (error) {
+    console.error("deleteHouse failed:", error);
+    return { ok: false, error: "server", message: "Could not delete the house." };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
