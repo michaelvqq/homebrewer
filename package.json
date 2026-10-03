@@ -10,11 +10,18 @@
     "test": "tsx --test 'src/**/*.test.ts'"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.71",
+    "@ai-sdk/google": "^4.0.87",
+    "@ai-sdk/openai": "^4.0.83",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "ai": "^7.0.127",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "three": "^0.186.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -22,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
