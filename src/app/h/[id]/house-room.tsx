@@ -169,7 +169,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
           )}
 
           {/* Top-left: project title and view controls */}
-          <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2">
+          <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-500">
             <div className={cn(overlay, "pointer-events-auto px-3 py-2")}>
               <h1 className="max-w-[280px] truncate text-sm font-semibold">{house.title}</h1>
               <p className="text-xs text-muted-foreground">v{house.version}{isOwner ? " · yours" : ""}</p>
@@ -202,6 +202,11 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
               <Separator orientation="vertical" className="h-5" />
               <TimeOfDay value={clockTime} onChange={setClockTime} />
             </div>
+            {mode === "orbit" && spec && showRoof && (
+              <p className={cn(overlay, "w-fit px-3 py-1.5 text-xs text-muted-foreground animate-in fade-in duration-700")}>
+                Switch off Roof{floors.length > 1 ? " or a floor" : ""} to look inside
+              </p>
+            )}
             {mode === "walk" && (
               <p className={cn(overlay, "w-fit px-3 py-1.5 text-xs text-muted-foreground")}>
                 Click the view to look around · WASD to move · Esc to release

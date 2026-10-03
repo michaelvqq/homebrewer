@@ -251,8 +251,8 @@ export function FurnitureItem({ item, y = 0 }: { item: Item; y?: number }) {
     </group>
   );
 }
-// `floorY` gives each item's storey height (by its room); items it returns null for are hidden.
-export function Furniture({ items, visible, floorY }: { items: Item[]; visible: boolean; floorY: (roomId: string) => number | null }) {
+// `floorY` gives each item's storey height (by its room).
+export function Furniture({ items, visible, floorY }: { items: Item[]; visible: boolean; floorY: (roomId: string) => number }) {
   const ref = useRef<Group>(null);
   // Initial scale only; afterwards useFrame animates it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,10 +268,9 @@ export function Furniture({ items, visible, floorY }: { items: Item[]; visible: 
   });
   return (
     <group ref={ref} scale={initialScale}>
-      {items.map((item) => {
-        const y = floorY(item.roomId);
-        return y === null ? null : <FurnitureItem key={item.id} item={item} y={y} />;
-      })}
+      {items.map((item) => (
+        <FurnitureItem key={item.id} item={item} y={floorY(item.roomId)} />
+      ))}
     </group>
   );
 }

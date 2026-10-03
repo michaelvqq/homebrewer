@@ -1,14 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useId, useMemo } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useId, useMemo, useRef } from "react";
+import { Vector3 } from "three";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, OrbitControls, Text } from "@react-three/drei";
 import type { HouseSpec } from "@/lib/house/spec";
 import { LABEL_FONT } from "./label-font";
-import { roomFloor, STOREY } from "@/lib/house/floors";
+import { levels, roomFloor, STOREY } from "@/lib/house/floors";
 import { roofPlan } from "@/lib/house/roof";
 import { Roof } from "./roof";
-import { RoomShell } from "./walls";
+import { Layer } from "./layer";
+import { RoomShell, WALL_HEIGHT } from "./walls";
 import { Furniture } from "./furniture";
 import { WalkControls } from "./walk-controls";
 import { Avatars, type Avatar } from "./avatars";
@@ -53,14 +55,23 @@ function houseBounds(spec: HouseSpec | null): Bounds {
 
 function OrbitRig({ size, empty }: { size: number; empty: boolean }) {
   const get = useThree((s) => s.get);
+  const goal = useRef<Vector3 | null>(null);
   useEffect(() => {
     const { camera } = get();
     const d = size * 0.85 + 4;
     // An empty lot gets a low, wide angle so the horizon and sky are in view.
-    if (empty) camera.position.set(d * 0.9, d * 0.28, d * 1.1);
-    else camera.position.set(d * 0.35, d * 0.75, d * 0.75);
+    const to = empty ? new Vector3(d * 0.9, d * 0.28, d * 1.1) : new Vector3(d * 0.35, d * 0.75, d * 0.75);
+    // Fly in from further out and higher; any drag cancels the glide.
+    camera.position.copy(to.clone().multiplyScalar(1.8).add(new Vector3(0, d * 0.6, 0)));
     camera.lookAt(0, 0, 0);
+    goal.current = to;
   }, [get, size, empty]);
+  useFrame(({ camera }, dt) => {
+    const to = goal.current;
+    if (!to) return;
+    camera.position.lerp(to, Math.min(1, dt * 2.2));
+    if (camera.position.distanceTo(to) < 0.05) goal.current = null;
+  });
   return (
     <OrbitControls
       makeDefault
@@ -69,6 +80,7 @@ function OrbitRig({ size, empty }: { size: number; empty: boolean }) {
       maxPolarAngle={Math.PI / 2 - 0.05}
       minDistance={2}
       maxDistance={size * 4 + 20}
+      onStart={() => (goal.current = null)}
     />
   );
 }
@@ -103,16 +115,12 @@ export function HouseScene({
   const bounds = useMemo(() => houseBounds(spec), [spec]);
   const offset = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds]);
   const hidden = useMemo(() => new Set(hiddenFloors), [hiddenFloors]);
+  const floors = useMemo(() => (spec ? levels(spec) : []), [spec]);
+  const roofs = useMemo(() => (spec ? roofPlan(spec) : []), [spec]);
+  const roomFloors = useMemo(() => new Map((spec?.rooms ?? []).map((r) => [r.id, roomFloor(r)])), [spec]);
+  const floorY = useMemo(() => (roomId: string) => (roomFloors.get(roomId) ?? 0) * STOREY, [roomFloors]);
   const rooms = spec?.rooms.filter((r) => !hidden.has(roomFloor(r))) ?? [];
-  const roofs = useMemo(() => (spec && showRoof ? roofPlan(spec).filter((p) => !hidden.has(p.floor)) : []), [spec, showRoof, hidden]);
-  const floorY = useMemo(() => {
-    const byId = new Map((spec?.rooms ?? []).map((r) => [r.id, r]));
-    return (roomId: string) => {
-      const r = byId.get(roomId);
-      if (!r) return 0;
-      return hidden.has(roomFloor(r)) ? null : roomFloor(r) * STOREY;
-    };
-  }, [spec, hidden]);
+  const buildTime = (spec?.rooms.length ?? 0) * 0.06; // rooms rise one after another, then furniture, then the roof
 
   return (
     <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#c3d6ea] ${onPick ? "cursor-crosshair" : ""}`}>
@@ -129,13 +137,36 @@ export function HouseScene({
           }}
         >
           {spec &&
-            rooms.map((room) => (
-              <RoomShell key={room.id} room={room} spec={spec} />
+            floors.map((f) => (
+              <Layer key={f} shown={!hidden.has(f)} baseY={f * STOREY}>
+                {spec.rooms.map((room, i) =>
+                  roomFloor(room) === f ? (
+                    <Layer key={room.id} shown appear delay={i * 0.06} baseY={f * STOREY}>
+                      <RoomShell room={room} spec={spec} />
+                    </Layer>
+                  ) : null,
+                )}
+                <Layer shown appear delay={buildTime + 0.15} baseY={f * STOREY}>
+                  <Furniture
+                    items={spec.furniture.filter((it) => (roomFloors.get(it.roomId) ?? 0) === f)}
+                    visible={showFurniture}
+                    floorY={floorY}
+                  />
+                </Layer>
+              </Layer>
             ))}
           {roofs.map((piece, i) => (
-            <Roof key={i} piece={piece} />
+            <Layer
+              key={`${piece.kind}-${piece.floor}-${piece.rect.x}-${piece.rect.z}`}
+              shown={showRoof && !hidden.has(piece.floor)}
+              baseY={piece.floor * STOREY + WALL_HEIGHT}
+              lift={1.5}
+              appear
+              delay={buildTime + 0.35 + i * 0.05}
+            >
+              <Roof piece={piece} />
+            </Layer>
           ))}
-          {spec && <Furniture items={spec.furniture} visible={showFurniture} floorY={floorY} />}
           <Avatars avatars={avatars} />
           {pins.map((pin) => (
             <PinMarker key={pin.id} pin={pin} />
