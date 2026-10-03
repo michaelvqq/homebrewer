@@ -17,7 +17,7 @@ export async function AppSidebar({ user }: { user: { id: string; email?: string 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
       <div className="flex items-center justify-between px-4 py-3">
-        <Link href="/" className="font-semibold tracking-tight">Homecraft</Link>
+        <Link href="/" className="font-semibold tracking-tight">Homebrewer</Link>
       </div>
       <div className="px-3">
         <Link

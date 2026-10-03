@@ -1,8 +1,8 @@
-# Homecraft
+# Homebrewer
 
 **Describe a home. Agents build it. Friends redesign it.**
 
-Homecraft turns a text prompt into a furnished 3D house you can walk through. Two AI agents work in sequence: an **architect** lays out rooms, doors and windows, then an **interior designer** furnishes every room. Share the link and visitors can join you inside the house, see each other move around, like it, and suggest changes. When the owner approves a suggestion, the agents redesign the house, and everyone in the room watches it happen live.
+Homebrewer turns a text prompt into a furnished 3D house you can walk through. Two AI agents work in sequence: an **architect** lays out rooms, doors and windows, then an **interior designer** furnishes every room. Share the link and visitors can join you inside the house, see each other move around, like it, and suggest changes. When the owner approves a suggestion, the agents redesign the house, and everyone in the room watches it happen live.
 
 Built solo for the Supabase Select 2026 Hackathon.
 

@@ -1,4 +1,4 @@
-# Homecraft Implementation Plan
+# Homebrewer Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16.3.8, React 19.2, Supabase (`@supabase/ssr`, hosted project `oeuvejmpcdszhkufrlqh`), Tailwind v4, zod 4, `ai@7` + `@ai-sdk/{anthropic,openai,google}@4`, `@react-three/fiber@9`, `@react-three/drei@10`, `three@0.186`.
 
-**Spec:** `docs/superpowers/specs/2026-10-03-homecraft-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-03-homebrewer-design.md`
 
 **Time budget:** hard deadline 5:00 PM Pacific today. Tasks are ordered so every completed prefix is demoable. Testing is one schema test plus a manual two-browser run (per spec), so steps are build/typecheck/manual-verify, not TDD.
 
@@ -36,12 +36,12 @@
 ### Task 1: Database schema, RLS, realtime (hosted)
 
 **Files:**
-- Create: `supabase/migrations/<timestamp>_homecraft.sql` (via `supabase migration new homecraft`)
+- Create: `supabase/migrations/<timestamp>_homebrewer.sql` (via `supabase migration new homebrewer`)
 
 **Interfaces:**
 - Produces: tables `houses`, `comments`, `likes`, `user_settings` exactly as below; generated types in `src/lib/supabase/database.types.ts`.
 
-- [ ] **Step 1:** `supabase link --project-ref oeuvejmpcdszhkufrlqh` (needs the user's `supabase login` + DB password), then `supabase migration new homecraft`.
+- [ ] **Step 1:** `supabase link --project-ref oeuvejmpcdszhkufrlqh` (needs the user's `supabase login` + DB password), then `supabase migration new homebrewer`.
 - [ ] **Step 2:** Write this SQL into the new migration:
 
 ```sql
@@ -115,7 +115,7 @@ alter publication supabase_realtime add table public.houses, public.comments, pu
 
 - [ ] **Step 3:** `supabase db push` and confirm it applies. Run `supabase db advisors` if the CLI supports it (upgrade CLI if < 2.81.3, otherwise skip).
 - [ ] **Step 4:** `supabase gen types typescript --linked > src/lib/supabase/database.types.ts`; pass `<Database>` to both `createClient` helpers.
-- [ ] **Step 5:** Commit `feat: homecraft schema with RLS and realtime`.
+- [ ] **Step 5:** Commit `feat: homebrewer schema with RLS and realtime`.
 
 ### Task 2: HouseSpec contract and furniture catalog
 
@@ -245,7 +245,7 @@ export function HouseScene(props: {
 ### Task 5: Home page and house page with realtime
 
 **Files:**
-- Modify: `src/app/page.tsx`, `src/app/layout.tsx` (title "Homecraft", header with Settings + sign out)
+- Modify: `src/app/page.tsx`, `src/app/layout.tsx` (title "Homebrewer", header with Settings + sign out)
 - Create: `src/app/h/[id]/page.tsx`, `src/app/h/[id]/house-room.tsx` (client), `src/lib/realtime/use-house-room.ts`, `src/components/house/comments-panel.tsx`
 
 **Interfaces:**

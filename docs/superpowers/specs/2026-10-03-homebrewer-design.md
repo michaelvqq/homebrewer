@@ -1,6 +1,6 @@
-# Homecraft: design spec
+# Homebrewer: design spec
 
-Supabase Select 2026 hackathon, solo. Deadline 5 PM Pacific, Oct 3, 2026. Working name "Homecraft" (renamable).
+Supabase Select 2026 hackathon, solo. Deadline 5 PM Pacific, Oct 3, 2026. Working name "Homebrewer" (renamable).
 
 ## Goal
 
