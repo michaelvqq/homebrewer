@@ -2,6 +2,7 @@
 
 import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { LABEL_FONT } from "./label-font";
 import { Billboard, Text } from "@react-three/drei";
 import type { Group } from "three";
 
@@ -45,7 +46,7 @@ function AvatarFigure({ avatar }: { avatar: Avatar }) {
       </mesh>
       <Suspense fallback={null}>
         <Billboard position={[0, BODY_Y + LENGTH / 2 + RADIUS + 0.3, 0]}>
-          <Text fontSize={0.22} color="#111827" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" anchorY="middle">
+          <Text font={LABEL_FONT} fontSize={0.22} color="#111827" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" anchorY="middle">
             {avatar.name}
           </Text>
         </Billboard>

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useId, useMemo } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { Billboard, OrbitControls, Text } from "@react-three/drei";
 import type { HouseSpec } from "@/lib/house/spec";
+import { LABEL_FONT } from "./label-font";
 import { RoomShell } from "./walls";
 import { Furniture } from "./furniture";
 import { WalkControls } from "./walk-controls";
@@ -27,7 +28,7 @@ function PinMarker({ pin }: { pin: Pin }) {
       </mesh>
       <Suspense fallback={null}>
         <Billboard position={[0, 1.6, 0]}>
-          <Text fontSize={0.18} color="#111827" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" maxWidth={2.5}>
+          <Text font={LABEL_FONT} fontSize={0.18} color="#111827" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" maxWidth={2.5}>
             {pin.label.length > 32 ? `${pin.label.slice(0, 31)}…` : pin.label}
           </Text>
         </Billboard>
@@ -119,7 +120,7 @@ export function HouseScene({
             {mode === "orbit" &&
               spec?.rooms.map((room) => (
                 <Billboard key={room.id} position={[room.x + room.width / 2, 2.8, room.z + room.depth / 2]}>
-                  <Text fontSize={0.4} color="#1f2937" outlineWidth={0.02} outlineColor="#ffffff" anchorX="center" anchorY="middle">
+                  <Text font={LABEL_FONT} fontSize={0.4} color="#1f2937" outlineWidth={0.02} outlineColor="#ffffff" anchorX="center" anchorY="middle">
                     {room.name}
                   </Text>
                 </Billboard>
