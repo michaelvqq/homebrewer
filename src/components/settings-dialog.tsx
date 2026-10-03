@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Settings } from "lucide-react";
 import { getSettings, saveSettings } from "@/app/settings/actions";
 import { Button } from "@/components/ui/button";
@@ -10,54 +10,74 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PROVIDER_IDS, PROVIDERS, type Provider } from "@/lib/ai/models";
+import { modelLabel, PROVIDER_IDS, PROVIDERS, type Provider } from "@/lib/ai/models";
 import type { SettingsView } from "@/lib/ai/settings";
 
 const CUSTOM = "__custom__";
 
 export function SettingsButton() {
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setOpen(true)}>
+        <Settings />
+        Settings
+      </Button>
+      <SettingsDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+type Choice = { provider: Provider; model: string };
+
+// Provider, model and API keys. `initial` preselects a provider/model (e.g. one picked without a key yet).
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initial?: Choice;
+  onSaved?: (view: SettingsView) => void;
+}) {
   const [view, setView] = useState<SettingsView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startLoading] = useTransition();
 
-  function onOpenChange(next: boolean) {
-    setOpen(next);
-    if (!next) return;
-    setError(null);
+  useEffect(() => {
+    if (!open) return;
     startLoading(async () => {
       const result = await getSettings();
-      if (result.ok) setView(result.data);
-      else setError("Could not load settings.");
+      if (result.ok) {
+        setError(null);
+        setView(result.data);
+      } else setError("Could not load settings.");
     });
-  }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground">
-          <Settings />
-          Settings
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Agent model</DialogTitle>
+          <DialogTitle>Models and API keys</DialogTitle>
           <DialogDescription>
             Your houses are designed with your own API key. Keys are encrypted and never shown again.
           </DialogDescription>
         </DialogHeader>
         {view ? (
           <SettingsForm
-            view={view}
+            key={`${initial?.provider ?? ""}:${initial?.model ?? ""}`}
+            view={initial ? { ...view, ...initial } : view}
             onSaved={(v) => {
               setView(v);
-              setOpen(false);
+              onSaved?.(v);
+              onOpenChange(false);
             }}
           />
         ) : (
@@ -108,7 +128,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: (v: Sett
             {PROVIDER_IDS.map((p) => (
               <SelectItem key={p} value={p}>
                 {PROVIDERS[p].label}
-                {view.savedKeys[p] ? " ✓" : ""}
+                {view.savedKeys[p] ? " ✓" : view.demo[p] ? " (demo key)" : ""}
               </SelectItem>
             ))}
           </SelectContent>
@@ -124,7 +144,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: (v: Sett
           <SelectContent>
             {PROVIDERS[provider].models.map((m) => (
               <SelectItem key={m} value={m}>
-                {m}
+                {modelLabel(m)}
               </SelectItem>
             ))}
             <SelectItem value={CUSTOM}>Custom model ID…</SelectItem>
@@ -142,9 +162,15 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: (v: Sett
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder={saved ? `Saved ••••${saved} (leave blank to keep)` : PROVIDERS[provider].keyHint}
+          placeholder={
+            saved
+              ? `Saved ••••${saved} (leave blank to keep)`
+              : view.demo[provider]
+                ? `Optional: demo key in use (${PROVIDERS[provider].keyHint})`
+                : PROVIDERS[provider].keyHint
+          }
           autoComplete="off"
-          required={!saved}
+          required={!saved && !view.demo[provider]}
         />
       </div>
 

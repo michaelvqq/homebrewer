@@ -10,7 +10,13 @@ type Client = SupabaseClient<Database>;
 export type StoredKey = { c: string; last4: string };
 export type StoredKeys = Partial<Record<Provider, StoredKey>>;
 
-export type SettingsView = { provider: Provider; model: string; savedKeys: Record<Provider, string | null> };
+// demo: providers with a shared key, usable without the user's own.
+export type SettingsView = {
+  provider: Provider;
+  model: string;
+  savedKeys: Record<Provider, string | null>;
+  demo: Record<Provider, boolean>;
+};
 
 const asProvider = (p: string | undefined): Provider =>
   (PROVIDER_IDS as readonly string[]).includes(p ?? "") ? (p as Provider) : "anthropic";
@@ -23,6 +29,11 @@ export async function readSettingsView(supabase: Client): Promise<SettingsView> 
     provider: asProvider(data?.provider),
     model: data?.model ?? "claude-opus-5-5",
     savedKeys: { anthropic: keys.anthropic?.last4 ?? null, openai: keys.openai?.last4 ?? null, google: keys.google?.last4 ?? null },
+    demo: {
+      anthropic: !!serverEnv.SHARED_ANTHROPIC_API_KEY,
+      openai: !!serverEnv.SHARED_OPENAI_API_KEY,
+      google: !!serverEnv.SHARED_GOOGLE_API_KEY,
+    },
   };
 }
 

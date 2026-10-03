@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowUp } from "lucide-react";
 import { liveEdit } from "@/app/h/actions";
+import { ModelPicker } from "@/components/model-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -98,18 +99,27 @@ function Chat({ houseId, userId }: { houseId: string; userId: string }) {
       {isOwner ? (
         <form onSubmit={submit} className="p-2">
           {error && <p className="mb-1 px-1 text-xs text-destructive">{error}</p>}
-          <div className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-xs">
+          <div className="rounded-2xl border bg-background p-1 shadow-xs focus-within:ring-[3px] focus-within:ring-ring/30">
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={300}
               disabled={busy}
               placeholder={busy ? "Agents are working…" : "Add a plant to the bedroom…"}
-              className="h-8 min-w-0 flex-1 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              className="h-9 min-w-0 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <Button type="submit" size="icon-sm" aria-label="Build" disabled={busy || pending || text.trim().length < 2}>
-              <ArrowUp />
-            </Button>
+            <div className="flex items-center justify-between gap-1">
+              <ModelPicker className="-ml-1 max-w-[70%]" />
+              <Button
+                type="submit"
+                size="icon-sm"
+                className="rounded-full"
+                aria-label="Build"
+                disabled={busy || pending || text.trim().length < 2}
+              >
+                <ArrowUp />
+              </Button>
+            </div>
           </div>
         </form>
       ) : (
