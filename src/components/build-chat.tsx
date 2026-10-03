@@ -1,0 +1,111 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { liveEdit } from "@/app/h/actions";
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
+
+type Message = Database["public"]["Tables"]["house_messages"]["Row"];
+type HouseMeta = { owner_id: string; status: string; title: string };
+
+// The current house's build conversation: the owner's prompts/edits and the agents' replies, live.
+export function BuildChat({ userId }: { userId: string }) {
+  const match = usePathname().match(/^\/h\/([0-9a-f-]{36})/);
+  const houseId = match?.[1];
+  if (!houseId) return <div className="flex-1" />;
+  return <Chat key={houseId} houseId={houseId} userId={userId} />;
+}
+
+function Chat({ houseId, userId }: { houseId: string; userId: string }) {
+  const supabase = useMemo(() => createClient(), []);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [house, setHouse] = useState<HouseMeta | null>(null);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      supabase.from("house_messages").select("*").eq("house_id", houseId).order("created_at"),
+      supabase.from("houses").select("owner_id, status, title").eq("id", houseId).maybeSingle(),
+    ]).then(([m, h]) => {
+      if (cancelled) return;
+      setMessages(m.data ?? []);
+      setHouse(h.data);
+    });
+
+    const channel = supabase
+      .channel(`chat:${houseId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "house_messages", filter: `house_id=eq.${houseId}` }, (p) =>
+        setMessages((ms) => (ms.some((m) => m.id === (p.new as Message).id) ? ms : [...ms, p.new as Message])),
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "houses", filter: `id=eq.${houseId}` }, (p) =>
+        setHouse((h) => (h ? { ...h, status: (p.new as HouseMeta).status } : h)),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, houseId]);
+
+  useEffect(() => bottomRef.current?.scrollIntoView({ block: "end" }), [messages.length]);
+
+  const isOwner = house?.owner_id === userId;
+  const busy = house?.status === "generating";
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const r = await liveEdit({ houseId, text });
+      if (r.ok) setText("");
+      else setError(r.message ?? "Could not apply that.");
+    });
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col border-t border-neutral-200 dark:border-neutral-800">
+      <p className="px-4 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-neutral-500">Build chat</p>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-2">
+        {messages.map((m) => (
+          <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+            <p
+              className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-3 py-1.5 text-sm ${m.role === "user" ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900" : "bg-white text-neutral-800 ring-1 ring-neutral-200 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800"}`}
+            >
+              {m.body}
+            </p>
+          </div>
+        ))}
+        {busy && <p className="animate-pulse px-1 text-xs text-neutral-500">Agents are working…</p>}
+        <div ref={bottomRef} />
+      </div>
+      {isOwner ? (
+        <form onSubmit={submit} className="p-2">
+          {error && <p className="mb-1 px-1 text-xs text-red-600">{error}</p>}
+          <div className="flex gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={300}
+              disabled={busy}
+              placeholder={busy ? "Agents are working…" : "Add a plant to the bedroom…"}
+              className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none disabled:opacity-50"
+            />
+            <button
+              disabled={busy || pending || text.trim().length < 2}
+              className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+            >
+              Build
+            </button>
+          </div>
+        </form>
+      ) : (
+        house && <p className="px-4 pb-3 text-xs text-neutral-500">Only the owner builds here. Leave a suggestion on the right →</p>
+      )}
+    </div>
+  );
+}

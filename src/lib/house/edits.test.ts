@@ -41,3 +41,15 @@ test("recolorRoom changes walls or floor of one room", () => {
   assert.equal(recolorRoom(base, "living", "floor", "#6b4a2f").rooms[0].floorColor, "#6b4a2f");
   assert.equal(recolorRoom(base, "living", "floor", "#6b4a2f").rooms[0].wallColor, "#eeeeee");
 });
+
+test("addFurniture with a target point places the item as close to it as fits", () => {
+  const wide: HouseSpec = { ...base, rooms: [{ ...base.rooms[0], width: 8, depth: 6 }], furniture: [] };
+  const plant = addFurniture(wide, "plant", "living", { x: 6, z: 4.5 }).furniture[0];
+  assert.ok(Math.hypot(plant.x - 6, plant.z - 4.5) < 0.3, `plant at ${plant.x},${plant.z}`);
+});
+
+test("roomAt finds the room containing a point", async () => {
+  const { roomAt } = await import("./edits");
+  assert.equal(roomAt(base, 1, 1)?.id, "living");
+  assert.equal(roomAt(base, 50, 50), undefined);
+});

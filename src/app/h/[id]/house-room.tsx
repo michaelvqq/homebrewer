@@ -3,9 +3,11 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { houseSpecSchema } from "@/lib/house/spec";
+import type { Pin } from "@/components/house/house-scene";
+import { roomAt } from "@/lib/house/edits";
+import { houseSpecSchema, type HouseSpec } from "@/lib/house/spec";
 import { colorFor, useHouseRoom, type CommentRow, type HouseRow, type Viewer } from "@/lib/realtime/use-house-room";
-import { liveEdit, moderateComment, postComment, retryHouse, toggleLike } from "../actions";
+import { moderateComment, postComment, retryHouse, toggleLike } from "../actions";
 
 const HouseScene = dynamic(() => import("@/components/house/house-scene").then((m) => m.HouseScene), {
   ssr: false,
@@ -35,6 +37,15 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const [showFurniture, setShowFurniture] = useState(true);
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
   const [panelOpen, setPanelOpen] = useState(true);
+  // Pinning a suggestion: while `placing`, a click in the scene sets `draft` (house coordinates).
+  const [placing, setPlacing] = useState(false);
+  const [draft, setDraft] = useState<{ x: number; z: number } | null>(null);
+  const pins: Pin[] = [
+    ...comments
+      .filter((c) => c.pos_x !== null && c.pos_z !== null && (c.status === "pending" || c.status === "approved"))
+      .map((c) => ({ id: c.id, x: c.pos_x!, z: c.pos_z!, label: c.body, color: colorFor(c.author_id) })),
+    ...(draft ? [{ id: "draft", x: draft.x, z: draft.z, label: "Your suggestion", color: "#111827" }] : []),
+  ];
   const [copied, setCopied] = useState(false);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +97,29 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   return (
     <div className="flex h-full min-h-0 w-full flex-1">
       <section className="relative min-w-0 flex-1">
-        <HouseScene spec={spec} showFurniture={showFurniture} mode={mode} avatars={room.avatars} onMove={room.sendMove} />
+        <HouseScene
+          spec={spec}
+          showFurniture={showFurniture}
+          mode={mode}
+          avatars={room.avatars}
+          onMove={room.sendMove}
+          pins={pins}
+          onPick={
+            placing
+              ? (pos) => {
+                  setDraft(pos);
+                  setPlacing(false);
+                  setPanelOpen(true);
+                }
+              : undefined
+          }
+        />
+        {placing && (
+          <p className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900 px-4 py-2 text-sm text-white shadow">
+            Click a spot in the house to pin your suggestion ·{" "}
+            <button onClick={() => setPlacing(false)} className="underline">cancel</button>
+          </p>
+        )}
 
         {/* Top-left: project title and view controls */}
         <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2">
@@ -120,27 +153,15 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
           )}
         </div>
 
-        {/* Top-right: who's here, like, share, panel toggle */}
-        <div className="absolute right-4 top-4 flex items-center gap-2">
-          <ViewerStack viewers={viewers} meId={me.id} />
-          {user ? (
-            <button onClick={like} className={`${chip} px-3 py-1.5 text-sm`}>
-              {room.likedByMe ? "♥" : "♡"} {room.likeCount}
-            </button>
-          ) : (
-            <Link href={loginHref} title="Sign in to like" className={`${chip} px-3 py-1.5 text-sm`}>
-              ♡ {room.likeCount}
-            </Link>
-          )}
-          <button onClick={share} className={`${chip} px-3 py-1.5 text-sm`}>
-            {copied ? "Link copied" : "Share"}
-          </button>
-          {!panelOpen && (
+        {/* Top-right: who's here + open the social panel */}
+        {!panelOpen && (
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <ViewerStack viewers={viewers} meId={me.id} />
             <button onClick={() => setPanelOpen(true)} className={`${chip} px-3 py-1.5 text-sm`}>
-              Suggestions{pendingCount ? ` · ${pendingCount}` : ""}
+              ♥ {room.likeCount} · Suggestions{pendingCount ? ` · ${pendingCount}` : ""}
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Top-center: agent status or done notice */}
         {(generating || house.status === "error") && (
@@ -164,23 +185,56 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
           <p className="absolute left-1/2 top-16 -translate-x-1/2 rounded-md bg-red-600 px-3 py-1.5 text-sm text-white">{error}</p>
         )}
 
-        {isOwner && spec && <BuildBar houseId={house.id} busy={generating} />}
       </section>
 
       {panelOpen && (
         <aside className="flex w-[340px] shrink-0 flex-col border-l border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-            <div>
-              <h2 className="text-sm font-semibold">Suggestions</h2>
-              <p className="text-xs text-neutral-500">
-                {isOwner ? "Approve one and the agents redesign live" : "The owner can apply your idea live"}
-              </p>
+          <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate font-semibold">{house.title}</h2>
+                <p className="line-clamp-2 text-xs text-neutral-500">{house.prompt}</p>
+              </div>
+              <button onClick={() => setPanelOpen(false)} aria-label="Close panel" className="rounded-md px-2 py-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                ✕
+              </button>
             </div>
-            <button onClick={() => setPanelOpen(false)} aria-label="Close panel" className="rounded-md px-2 py-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
-              ✕
-            </button>
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              {user ? (
+                <button onClick={like} className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
+                  {room.likedByMe ? "♥" : "♡"} {room.likeCount}
+                </button>
+              ) : (
+                <Link href={loginHref} title="Sign in to like" className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
+                  ♡ {room.likeCount}
+                </Link>
+              )}
+              <button onClick={share} className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
+                {copied ? "Link copied" : "Share"}
+              </button>
+              <div className="ml-auto">
+                <ViewerStack viewers={viewers} meId={me.id} />
+              </div>
+            </div>
           </div>
-          <Comments houseId={house.id} comments={comments} isOwner={isOwner} busy={generating} loginHref={user ? null : loginHref} />
+          <div className="px-4 pt-3">
+            <h3 className="text-sm font-semibold">Suggestions</h3>
+            <p className="text-xs text-neutral-500">
+              {isOwner ? "Approve one and the agents redesign live" : "Pin a spot and describe your idea — the owner can apply it live"}
+            </p>
+          </div>
+          <Comments
+            houseId={house.id}
+            comments={comments}
+            spec={spec}
+            isOwner={isOwner}
+            busy={generating}
+            loginHref={user ? null : loginHref}
+            draft={draft}
+            placing={placing}
+            onStartPlacing={() => setPlacing(true)}
+            onClearDraft={() => setDraft(null)}
+          />
         </aside>
       )}
     </div>
@@ -209,44 +263,6 @@ function ViewerStack({ viewers, meId }: { viewers: Viewer[]; meId: string }) {
   );
 }
 
-function BuildBar({ houseId, busy }: { houseId: string; busy: boolean }) {
-  const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const r = await liveEdit({ houseId, text });
-      if (r.ok) setText("");
-      else setError(r.message ?? "Could not apply that.");
-    });
-  }
-
-  return (
-    <form onSubmit={submit} className="absolute bottom-5 left-1/2 w-[min(640px,90%)] -translate-x-1/2">
-      {error && <p className="mb-2 rounded-md bg-red-600 px-3 py-1.5 text-sm text-white">{error}</p>}
-      <div className={`${chip} flex gap-2 rounded-xl p-2 shadow-lg`}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={300}
-          disabled={busy}
-          placeholder={busy ? "Agents are working…" : "Build live: “add a plant to the bedroom”, “paint the kitchen sage green”"}
-          className="flex-1 bg-transparent px-2 text-sm outline-none disabled:opacity-50"
-        />
-        <button
-          disabled={busy || pending || text.trim().length < 2}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
-        >
-          Build
-        </button>
-      </div>
-    </form>
-  );
-}
-
 const STATUS_STYLE: Record<string, string> = {
   pending: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
   approved: "bg-amber-100 text-amber-800",
@@ -257,16 +273,27 @@ const STATUS_STYLE: Record<string, string> = {
 function Comments({
   houseId,
   comments,
+  spec,
   isOwner,
   busy,
   loginHref,
+  draft,
+  placing,
+  onStartPlacing,
+  onClearDraft,
 }: {
   houseId: string;
   comments: CommentRow[];
+  spec: HouseSpec | null;
   isOwner: boolean;
   busy: boolean;
   loginHref: string | null; // set when signed out
+  draft: { x: number; z: number } | null;
+  placing: boolean;
+  onStartPlacing: () => void;
+  onClearDraft: () => void;
 }) {
+  const roomName = (x: number, z: number) => (spec ? roomAt(spec, x, z)?.name : undefined) ?? "outside";
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -275,8 +302,11 @@ function Comments({
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const r = await postComment({ houseId, body });
-      if (r.ok) setBody("");
+      const r = await postComment({ houseId, body, pos: draft });
+      if (r.ok) {
+        setBody("");
+        onClearDraft();
+      }
       else setError(r.message ?? "Could not post.");
     });
   }
@@ -301,6 +331,9 @@ function Comments({
               <span className={`ml-auto rounded px-1.5 py-0.5 text-xs ${STATUS_STYLE[c.status]}`}>{c.status}</span>
             </div>
             <p>{c.body}</p>
+            {c.pos_x !== null && c.pos_z !== null && (
+              <p className="mt-1 text-xs text-neutral-500">📍 {roomName(c.pos_x, c.pos_z)}</p>
+            )}
             {isOwner && c.status === "pending" && (
               <div className="mt-2 flex gap-2">
                 <button
@@ -325,6 +358,18 @@ function Comments({
       ) : (
         <form onSubmit={submit} className="border-t border-neutral-200 p-3 dark:border-neutral-800">
           {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          <div className="mb-2 flex items-center gap-2 text-xs">
+            {draft ? (
+              <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 dark:bg-neutral-800">
+                📍 Pinned in {roomName(draft.x, draft.z)}
+                <button type="button" onClick={onClearDraft} aria-label="Remove pin" className="text-neutral-500">✕</button>
+              </span>
+            ) : (
+              <button type="button" onClick={onStartPlacing} disabled={placing || !spec} className="rounded-full border border-neutral-300 px-2 py-1 disabled:opacity-40 dark:border-neutral-700">
+                {placing ? "Click in the house…" : "📍 Pin a spot"}
+              </button>
+            )}
+          </div>
           <div className="flex gap-2">
             <input
               value={body}

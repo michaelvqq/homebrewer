@@ -23,9 +23,14 @@ function newId(spec: HouseSpec, type: FurnitureType) {
   return `${type}-${n}`;
 }
 
-// Scans the room on a grid, nearest-to-walls first, for a spot that doesn't overlap other items.
-// Rugs may sit under things. Falls back to the room center so the request always does something visible.
-export function addFurniture(spec: HouseSpec, type: FurnitureType, roomId: string): HouseSpec {
+export function roomAt(spec: HouseSpec, x: number, z: number) {
+  return spec.rooms.find((r) => x >= r.x && x <= r.x + r.width && z >= r.z && z <= r.z + r.depth);
+}
+
+// Scans the room on a grid for a spot that doesn't overlap other items: closest to `near` when given
+// (a pinned suggestion), otherwise nearest the walls. Rugs may sit under things.
+// Falls back to the room center so the request always does something visible.
+export function addFurniture(spec: HouseSpec, type: FurnitureType, roomId: string, near?: { x: number; z: number }): HouseSpec {
   const room = spec.rooms.find((r) => r.id === roomId);
   if (!room) return spec;
   const { w, d } = footprint({ type, rotation: 0 });
@@ -39,7 +44,8 @@ export function addFurniture(spec: HouseSpec, type: FurnitureType, roomId: strin
   for (let x = minX; x <= maxX + 1e-9; x += STEP)
     for (let z = minZ; z <= maxZ + 1e-9; z += STEP)
       candidates.push({ x, z, edge: Math.min(x - minX, maxX - x, z - minZ, maxZ - z) });
-  candidates.sort((a, b) => a.edge - b.edge);
+  if (near) candidates.sort((a, b) => Math.hypot(a.x - near.x, a.z - near.z) - Math.hypot(b.x - near.x, b.z - near.z));
+  else candidates.sort((a, b) => a.edge - b.edge);
 
   const spot = candidates.find((c) => !others.some((o) => overlaps({ x: c.x, z: c.z, w, d }, o))) ?? {
     x: room.x + room.width / 2,

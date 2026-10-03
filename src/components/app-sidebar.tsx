@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/server";
+import { BuildChat } from "./build-chat";
 import { ProjectList } from "./project-list";
 import { SettingsButton } from "./settings-dialog";
 
@@ -9,7 +10,7 @@ export async function AppSidebar({ user }: { user: { id: string; email?: string 
   const supabase = await createClient();
   const { data: houses } = await supabase
     .from("houses")
-    .select("id, title, status")
+    .select("id, title, status, pinned, group_name")
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -26,9 +27,9 @@ export async function AppSidebar({ user }: { user: { id: string; email?: string 
           <span aria-hidden>＋</span> New house
         </Link>
       </div>
-      <p className="px-4 pb-1 pt-5 text-xs font-medium uppercase tracking-wide text-neutral-500">Projects</p>
       <ProjectList houses={houses ?? []} />
-      <div className="mt-auto flex flex-col gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+      <BuildChat userId={user.id} />
+      <div className="flex flex-col gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
         <p className="truncate px-1 text-xs text-neutral-500">{user.email}</p>
         <div className="flex items-center justify-between px-1">
           <SettingsButton />

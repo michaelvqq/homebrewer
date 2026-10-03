@@ -47,6 +47,9 @@ export type Database = {
           created_at: string
           house_id: string
           id: string
+          pos_x: number | null
+          pos_z: number | null
+          room_id: string | null
           status: string
         }
         Insert: {
@@ -56,6 +59,9 @@ export type Database = {
           created_at?: string
           house_id: string
           id?: string
+          pos_x?: number | null
+          pos_z?: number | null
+          room_id?: string | null
           status?: string
         }
         Update: {
@@ -65,6 +71,9 @@ export type Database = {
           created_at?: string
           house_id?: string
           id?: string
+          pos_x?: number | null
+          pos_z?: number | null
+          room_id?: string | null
           status?: string
         }
         Relationships: [
@@ -77,11 +86,45 @@ export type Database = {
           },
         ]
       }
+      house_messages: {
+        Row: {
+          body: string
+          created_at: string
+          house_id: string
+          id: string
+          role: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          house_id: string
+          id?: string
+          role: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          house_id?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_messages_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       houses: {
         Row: {
           created_at: string
+          group_name: string | null
           id: string
           owner_id: string
+          pinned: boolean
           prompt: string
           spec: Json | null
           status: string
@@ -92,8 +135,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          group_name?: string | null
           id?: string
           owner_id?: string
+          pinned?: boolean
           prompt: string
           spec?: Json | null
           status?: string
@@ -104,8 +149,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          group_name?: string | null
           id?: string
           owner_id?: string
+          pinned?: boolean
           prompt?: string
           spec?: Json | null
           status?: string

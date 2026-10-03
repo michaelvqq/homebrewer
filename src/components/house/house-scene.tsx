@@ -10,6 +10,30 @@ import { WalkControls } from "./walk-controls";
 import { Avatars, type Avatar } from "./avatars";
 
 export type { Avatar };
+export type Pin = { id: string; x: number; z: number; label: string; color: string };
+
+// A suggestion marker standing on the floor, in house coordinates.
+function PinMarker({ pin }: { pin: Pin }) {
+  return (
+    <group position={[pin.x, 0, pin.z]}>
+      <mesh position={[0, 0.6, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 1.2, 8]} />
+        <meshStandardMaterial color={pin.color} />
+      </mesh>
+      <mesh position={[0, 1.25, 0]} castShadow>
+        <sphereGeometry args={[0.14, 16, 16]} />
+        <meshStandardMaterial color={pin.color} emissive={pin.color} emissiveIntensity={0.3} />
+      </mesh>
+      <Suspense fallback={null}>
+        <Billboard position={[0, 1.6, 0]}>
+          <Text fontSize={0.18} color="#111827" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" maxWidth={2.5}>
+            {pin.label.length > 32 ? `${pin.label.slice(0, 31)}…` : pin.label}
+          </Text>
+        </Billboard>
+      </Suspense>
+    </group>
+  );
+}
 
 type Bounds = { cx: number; cz: number; size: number };
 
@@ -48,12 +72,16 @@ export function HouseScene({
   mode,
   avatars,
   onMove,
+  pins = [],
+  onPick,
 }: {
   spec: HouseSpec | null;
   showFurniture: boolean;
   mode: "orbit" | "walk";
   avatars: Avatar[];
   onMove?: (pos: { x: number; z: number; yaw: number }) => void;
+  pins?: Pin[];
+  onPick?: (pos: { x: number; z: number }) => void; // set while the user is placing a pin
 }) {
   const sceneId = useId();
   const selector = `[data-house-scene="${sceneId}"] canvas`;
@@ -62,7 +90,7 @@ export function HouseScene({
   const shadowExtent = bounds.size / 2 + 4;
 
   return (
-    <div data-house-scene={sceneId} className="relative h-full w-full">
+    <div data-house-scene={sceneId} className={`relative h-full w-full ${onPick ? "cursor-crosshair" : ""}`}>
       <Canvas shadows camera={{ fov: 55, near: 0.05, far: 500, position: [8, 10, 12] }} dpr={[1, 2]}>
         <color attach="background" args={["#d6ecfa"]} />
         <fog attach="fog" args={["#d6ecfa", 40, 140]} />
@@ -88,12 +116,22 @@ export function HouseScene({
         </mesh>
 
         {/* Everything inside this group is in house coordinates. */}
-        <group position={[-bounds.cx, 0, -bounds.cz]}>
+        <group
+          position={[-bounds.cx, 0, -bounds.cz]}
+          onClick={(e) => {
+            if (!onPick || e.delta > 4) return; // ignore orbit drags
+            e.stopPropagation();
+            onPick({ x: Math.round((e.point.x + bounds.cx) * 100) / 100, z: Math.round((e.point.z + bounds.cz) * 100) / 100 });
+          }}
+        >
           {spec?.rooms.map((room) => (
             <RoomShell key={room.id} room={room} spec={spec} />
           ))}
           {spec && <Furniture items={spec.furniture} visible={showFurniture} />}
           <Avatars avatars={avatars} />
+          {pins.map((pin) => (
+            <PinMarker key={pin.id} pin={pin} />
+          ))}
           <Suspense fallback={null}>
             {mode === "orbit" &&
               spec?.rooms.map((room) => (

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { runChange, runPipeline } from "@/lib/ai/pipeline";
+import { runChange, runPipeline, say } from "@/lib/ai/pipeline";
+import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema } from "@/lib/house/spec";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,10 +18,24 @@ const createSchema = z.object({
   prompt: z.string().trim().min(1).max(1000),
 });
 const id = z.uuid();
-const commentSchema = z.object({ houseId: id, body: z.string().trim().min(1).max(500) });
+const commentSchema = z.object({
+  houseId: id,
+  body: z.string().trim().min(1).max(500),
+  pos: z.object({ x: z.number().min(-200).max(200), z: z.number().min(-200).max(200) }).nullable().optional(),
+});
 
 // Runs the agents after the response is sent, as the signed-in owner.
-function generateLater(houseId: string, prompt: string, opts: { current?: unknown; change?: string; commentId?: string } = {}) {
+type Focus = { x: number; z: number };
+
+function focusOf(c: { pos_x: number | null; pos_z: number | null }): Focus | undefined {
+  return c.pos_x !== null && c.pos_z !== null ? { x: c.pos_x, z: c.pos_z } : undefined;
+}
+
+function generateLater(
+  houseId: string,
+  prompt: string,
+  opts: { current?: unknown; change?: string; commentId?: string; focus?: Focus } = {},
+) {
   after(async () => {
     const supabase = await createClient();
     const parsed = opts.current ? houseSpecSchema.safeParse(opts.current) : null;
@@ -28,7 +43,7 @@ function generateLater(houseId: string, prompt: string, opts: { current?: unknow
     // Changes to an existing house go through the router (instant edit or full redesign).
     const ok =
       current && opts.change
-        ? await runChange({ supabase, houseId, prompt, current, change: opts.change })
+        ? await runChange({ supabase, houseId, prompt, current, change: opts.change, focus: opts.focus })
         : await runPipeline({ supabase, houseId, prompt });
     if (ok && opts.commentId) await supabase.from("comments").update({ status: "applied" }).eq("id", opts.commentId);
   });
@@ -51,6 +66,7 @@ export async function createHouse(_prev: ActionResult | null, formData: FormData
     return { ok: false, error: "server", message: "Could not create the house." };
   }
 
+  await say(supabase, data.id, "user", parsed.data.prompt);
   generateLater(data.id, parsed.data.prompt);
   revalidatePath("/", "layout"); // sidebar project list
   redirect(`/h/${data.id}`);
@@ -76,7 +92,7 @@ export async function retryHouse(houseId: unknown): Promise<ActionResult> {
   // A failed redesign retries its approved comment; otherwise regenerate from the original prompt.
   const { data: pending } = await supabase
     .from("comments")
-    .select("id, body")
+    .select("id, body, pos_x, pos_z")
     .eq("house_id", house.id)
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -84,7 +100,7 @@ export async function retryHouse(houseId: unknown): Promise<ActionResult> {
     .maybeSingle();
 
   await supabase.from("houses").update({ status: "generating", status_message: "Retrying…" }).eq("id", house.id);
-  generateLater(house.id, house.prompt, pending ? { current: house.spec, change: pending.body, commentId: pending.id } : {});
+  generateLater(house.id, house.prompt, pending ? { current: house.spec, change: pending.body, commentId: pending.id, focus: focusOf(pending) } : {});
   return { ok: true, data: undefined };
 }
 
@@ -95,9 +111,20 @@ export async function postComment(input: unknown): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: "validation", message: "Comments are 1-500 characters." };
 
   const supabase = await createClient();
+  const { pos } = parsed.data;
+  let roomId: string | null = null;
+  if (pos) {
+    // Derive the room server-side from the current spec rather than trusting the client.
+    const { data: house } = await supabase.from("houses").select("spec").eq("id", parsed.data.houseId).maybeSingle();
+    const spec = houseSpecSchema.safeParse(house?.spec);
+    roomId = spec.success ? (roomAt(spec.data, pos.x, pos.z)?.id ?? null) : null;
+  }
   const { error } = await supabase.from("comments").insert({
     house_id: parsed.data.houseId,
     body: parsed.data.body,
+    pos_x: pos?.x ?? null,
+    pos_z: pos?.z ?? null,
+    room_id: roomId,
     author_id: user.id,
     author_name: user.email?.split("@")[0] ?? "guest",
   });
@@ -117,7 +144,7 @@ export async function moderateComment(commentId: unknown, decision: unknown): Pr
   const supabase = await createClient();
   const { data: comment } = await supabase
     .from("comments")
-    .select("id, body, status, house_id")
+    .select("id, body, status, house_id, author_name, pos_x, pos_z")
     .eq("id", parsed.data.commentId)
     .maybeSingle();
   if (!comment) return { ok: false, error: "not_found" };
@@ -133,8 +160,9 @@ export async function moderateComment(commentId: unknown, decision: unknown): Pr
 
   if (house.status === "generating") return { ok: false, error: "busy", message: "Wait for the current redesign to finish." };
   await supabase.from("comments").update({ status: "approved" }).eq("id", comment.id);
+  await say(supabase, house.id, "user", `Approved ${comment.author_name}'s suggestion: “${comment.body}”`);
   await supabase.from("houses").update({ status: "generating", status_message: "Agents are reading the feedback…" }).eq("id", house.id);
-  generateLater(house.id, house.prompt, { current: house.spec, change: comment.body, commentId: comment.id });
+  generateLater(house.id, house.prompt, { current: house.spec, change: comment.body, commentId: comment.id, focus: focusOf(comment) });
   return { ok: true, data: undefined };
 }
 
@@ -174,7 +202,36 @@ export async function liveEdit(input: unknown): Promise<ActionResult> {
   if (house.status === "generating") return { ok: false, error: "busy", message: "Wait for the current change to finish." };
   if (!house.spec) return { ok: false, error: "validation", message: "The house isn't built yet." };
 
+  await say(supabase, house.id, "user", parsed.data.text);
   await supabase.from("houses").update({ status: "generating", status_message: "Router is reading your edit…" }).eq("id", house.id);
   generateLater(house.id, house.prompt, { current: house.spec, change: parsed.data.text });
+  return { ok: true, data: undefined };
+}
+
+const organizeSchema = z.object({
+  houseId: id,
+  pinned: z.boolean().optional(),
+  groupName: z.string().trim().max(40).nullable().optional(), // "" or null clears the group
+});
+
+// Sidebar organisation: pin/unpin and move a house into a named group.
+export async function organizeHouse(input: unknown): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "unauthorized" };
+  const parsed = organizeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "validation", message: "Group names are up to 40 characters." };
+
+  const { houseId, pinned, groupName } = parsed.data;
+  const patch: { pinned?: boolean; group_name?: string | null } = {};
+  if (pinned !== undefined) patch.pinned = pinned;
+  if (groupName !== undefined) patch.group_name = groupName || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("houses").update(patch).eq("id", houseId).eq("owner_id", user.id);
+  if (error) {
+    console.error("organizeHouse failed:", error);
+    return { ok: false, error: "server" };
+  }
+  revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }
