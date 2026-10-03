@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { LogOut, Plus } from "lucide-react";
 import { signOut } from "@/app/login/actions";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/server";
 import { BuildChat } from "./build-chat";
 import { ProjectList } from "./project-list";
@@ -15,26 +18,30 @@ export async function AppSidebar({ user }: { user: { id: string; email?: string 
     .order("updated_at", { ascending: false });
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between px-4 py-3">
         <Link href="/" className="font-semibold tracking-tight">Homebrewer</Link>
       </div>
       <div className="px-3">
-        <Link
-          href="/"
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900"
-        >
-          <span aria-hidden>＋</span> New house
-        </Link>
+        <Button asChild className="w-full">
+          <Link href="/">
+            <Plus />
+            New house
+          </Link>
+        </Button>
       </div>
       <ProjectList houses={houses ?? []} />
       <BuildChat userId={user.id} />
-      <div className="flex flex-col gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
-        <p className="truncate px-1 text-xs text-neutral-500">{user.email}</p>
-        <div className="flex items-center justify-between px-1">
+      <Separator className="bg-sidebar-border" />
+      <div className="flex flex-col gap-1 p-3">
+        <p className="truncate px-1 text-xs text-muted-foreground">{user.email}</p>
+        <div className="flex items-center justify-between">
           <SettingsButton />
           <form action={signOut}>
-            <button className="text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white">Sign out</button>
+            <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
+              <LogOut />
+              Sign out
+            </Button>
           </form>
         </div>
       </div>

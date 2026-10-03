@@ -3,16 +3,29 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
+import { Check, Heart, Loader2, MapPin, MessageSquare, RotateCw, Share2, X } from "lucide-react";
 import type { Pin } from "@/components/house/house-scene";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema, type HouseSpec } from "@/lib/house/spec";
 import { isStaleGenerating } from "@/lib/house/sync";
 import { colorFor, useHouseRoom, type CommentRow, type HouseRow, type Viewer } from "@/lib/realtime/use-house-room";
+import { cn } from "@/lib/utils";
 import { moderateComment, postComment, retryHouse, toggleLike } from "../actions";
 
 const HouseScene = dynamic(() => import("@/components/house/house-scene").then((m) => m.HouseScene), {
   ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-sky-100 dark:bg-neutral-800" />,
+  loading: () => <Skeleton className="h-full w-full rounded-none" />,
 });
 
 type Props = {
@@ -24,7 +37,8 @@ type Props = {
   initialLikedByMe: boolean;
 };
 
-const chip = "rounded-lg bg-white/90 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-neutral-900/90 dark:ring-white/10";
+// Floating surfaces over the 3D canvas.
+const overlay = "rounded-lg border bg-background/80 shadow-sm backdrop-blur";
 
 export function HouseRoom({ user, isOwner, ...initial }: Props) {
   // Signed-out visitors still join presence and walk around, as a per-tab guest.
@@ -104,179 +118,194 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1">
-      <section className="relative min-w-0 flex-1">
-        <HouseScene
-          spec={spec}
-          showFurniture={showFurniture}
-          mode={mode}
-          avatars={room.avatars}
-          onMove={room.sendMove}
-          pins={pins}
-          onPick={
-            placing
-              ? (pos) => {
-                  setDraft(pos);
-                  setPlacing(false);
-                  setPanelOpen(true);
-                }
-              : undefined
-          }
-        />
-        {placing && (
-          <p className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900 px-4 py-2 text-sm text-white shadow">
-            Click a spot in the house to pin your suggestion ·{" "}
-            <button onClick={() => setPlacing(false)} className="underline">cancel</button>
-          </p>
-        )}
-
-        {/* Top-left: project title and view controls */}
-        <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2">
-          <div className={`${chip} pointer-events-auto px-3 py-2`}>
-            <h1 className="max-w-[280px] truncate text-sm font-semibold">{house.title}</h1>
-            <p className="text-xs text-neutral-500">v{house.version}{isOwner ? " · yours" : ""}</p>
-          </div>
-          <div className={`${chip} pointer-events-auto flex gap-1 p-1`}>
-            {(["orbit", "walk"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                disabled={!spec}
-                className={`rounded-md px-3 py-1.5 text-sm disabled:opacity-40 ${mode === m ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
-              >
-                {m === "orbit" ? "Overview" : "Walk"}
-              </button>
-            ))}
-            <button
-              onClick={() => setShowFurniture((s) => !s)}
-              disabled={!spec}
-              className="rounded-md px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:opacity-40 dark:hover:bg-neutral-800"
-            >
-              Furniture {showFurniture ? "on" : "off"}
-            </button>
-          </div>
-          {mode === "walk" && (
-            <p className="w-fit rounded-md bg-black/60 px-3 py-1.5 text-xs text-white">
-              Click the view to look around · WASD to move · Esc to release
-            </p>
+    <TooltipProvider>
+      <div className="flex h-full min-h-0 w-full flex-1">
+        <section className="relative min-w-0 flex-1">
+          <HouseScene
+            spec={spec}
+            showFurniture={showFurniture}
+            mode={mode}
+            avatars={room.avatars}
+            onMove={room.sendMove}
+            pins={pins}
+            onPick={
+              placing
+                ? (pos) => {
+                    setDraft(pos);
+                    setPlacing(false);
+                    setPanelOpen(true);
+                  }
+                : undefined
+            }
+          />
+          {placing && (
+            <div className={cn(overlay, "absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full py-1 pl-4 pr-1 text-sm")}>
+              <MapPin className="size-4 text-primary" />
+              Click a spot in the house to pin your suggestion
+              <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setPlacing(false)}>
+                Cancel
+              </Button>
+            </div>
           )}
-        </div>
 
-        {/* Top-right: who's here + open the social panel */}
-        {!panelOpen && (
-          <div className="absolute right-4 top-4 flex items-center gap-2">
-            <ViewerStack viewers={viewers} meId={me.id} />
-            <button onClick={() => setPanelOpen(true)} className={`${chip} px-3 py-1.5 text-sm`}>
-              ♥ {room.likeCount} · Suggestions{pendingCount ? ` · ${pendingCount}` : ""}
-            </button>
-          </div>
-        )}
-
-        {/* Top-center: agent status or done notice */}
-        {(generating || house.status === "error") && (
-          <div className={`${chip} absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm`}>
-            {generating && <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />}
-            {house.status === "error" && <span className="h-2 w-2 rounded-full bg-red-500" />}
-            <span className="max-w-[420px] truncate">
-              {house.status_message ?? (generating ? "Agents are working…" : "Something went wrong")}
-            </span>
-            {(house.status === "error" || stale) && isOwner && (
-              <button onClick={retry} className="ml-1 font-medium underline">Retry</button>
+          {/* Top-left: project title and view controls */}
+          <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2">
+            <div className={cn(overlay, "pointer-events-auto px-3 py-2")}>
+              <h1 className="max-w-[280px] truncate text-sm font-semibold">{house.title}</h1>
+              <p className="text-xs text-muted-foreground">v{house.version}{isOwner ? " · yours" : ""}</p>
+            </div>
+            <div className={cn(overlay, "pointer-events-auto flex items-center gap-2 p-1")}>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={mode}
+                onValueChange={(v) => v && switchMode(v as "orbit" | "walk")}
+                disabled={!spec}
+              >
+                <ToggleGroupItem value="orbit" className="px-3">Overview</ToggleGroupItem>
+                <ToggleGroupItem value="walk" className="px-3">Walk</ToggleGroupItem>
+              </ToggleGroup>
+              <Separator orientation="vertical" className="h-5" />
+              <Label className="cursor-pointer pr-2 text-sm font-normal">
+                <Switch size="sm" checked={showFurniture} onCheckedChange={setShowFurniture} disabled={!spec} />
+                Furniture
+              </Label>
+            </div>
+            {mode === "walk" && (
+              <p className={cn(overlay, "w-fit px-3 py-1.5 text-xs text-muted-foreground")}>
+                Click the view to look around · WASD to move · Esc to release
+              </p>
             )}
           </div>
-        )}
-        {notice && !generating && (
-          <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-green-600 px-4 py-2 text-sm text-white shadow">
-            ✓ {notice}
-          </div>
-        )}
-        {error && (
-          <p className="absolute left-1/2 top-16 -translate-x-1/2 rounded-md bg-red-600 px-3 py-1.5 text-sm text-white">{error}</p>
-        )}
 
-      </section>
-
-      {panelOpen && (
-        <aside className="flex w-[340px] shrink-0 flex-col border-l border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="border-b border-neutral-200 p-4 dark:border-neutral-800">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h2 className="truncate font-semibold">{house.title}</h2>
-                <p className="line-clamp-2 text-xs text-neutral-500">{house.prompt}</p>
-              </div>
-              <button onClick={() => setPanelOpen(false)} aria-label="Close panel" className="rounded-md px-2 py-1 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">
-                ✕
-              </button>
+          {/* Top-right: who's here + open the social panel */}
+          {!panelOpen && (
+            <div className="absolute right-4 top-4 flex items-center gap-2">
+              <ViewerStack viewers={viewers} meId={me.id} />
+              <Button variant="outline" size="sm" onClick={() => setPanelOpen(true)} className="bg-background/80 shadow-sm backdrop-blur">
+                <Heart className="size-4" /> {room.likeCount}
+                <Separator orientation="vertical" className="mx-1 h-4" />
+                <MessageSquare className="size-4" /> Suggestions
+                {pendingCount ? <Badge className="ml-1 h-5 px-1.5">{pendingCount}</Badge> : null}
+              </Button>
             </div>
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              {user ? (
-                <button onClick={like} className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
-                  {room.likedByMe ? "♥" : "♡"} {room.likeCount}
-                </button>
-              ) : (
-                <Link href={loginHref} title="Sign in to like" className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
-                  ♡ {room.likeCount}
-                </Link>
+          )}
+
+          {/* Top-center: agent status or done notice */}
+          {(generating || house.status === "error") && (
+            <div className={cn(overlay, "absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-sm")}>
+              {generating && <Loader2 className="size-4 animate-spin text-amber-500" />}
+              {house.status === "error" && <span className="size-2 rounded-full bg-destructive" />}
+              <span className="max-w-[420px] truncate">
+                {house.status_message ?? (generating ? "Agents are working…" : "Something went wrong")}
+              </span>
+              {(house.status === "error" || stale) && isOwner && (
+                <Button size="xs" variant="secondary" onClick={retry} className="ml-1 rounded-full">
+                  <RotateCw /> Retry
+                </Button>
               )}
-              <button onClick={share} className="rounded-md border border-neutral-300 px-2.5 py-1 dark:border-neutral-700">
-                {copied ? "Link copied" : "Share"}
-              </button>
-              <div className="ml-auto">
-                <ViewerStack viewers={viewers} meId={me.id} />
+            </div>
+          )}
+          {notice && !generating && (
+            <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm text-white shadow">
+              <Check className="size-4" /> {notice}
+            </div>
+          )}
+          {error && (
+            <p className="absolute left-1/2 top-16 -translate-x-1/2 rounded-md bg-destructive px-3 py-1.5 text-sm text-white shadow">{error}</p>
+          )}
+        </section>
+
+        {panelOpen && (
+          <aside className="flex w-[340px] shrink-0 flex-col border-l bg-background">
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="truncate font-semibold">{house.title}</h2>
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{house.prompt}</p>
+                </div>
+                <Button variant="ghost" size="icon-sm" onClick={() => setPanelOpen(false)} aria-label="Close panel" className="text-muted-foreground">
+                  <X />
+                </Button>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                {user ? (
+                  <Button variant="outline" size="sm" onClick={like} aria-pressed={room.likedByMe}>
+                    <Heart className={cn(room.likedByMe && "fill-red-500 text-red-500")} /> {room.likeCount}
+                  </Button>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={loginHref}>
+                          <Heart /> {room.likeCount}
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Sign in to like</TooltipContent>
+                  </Tooltip>
+                )}
+                <Button variant="outline" size="sm" onClick={share}>
+                  {copied ? <Check /> : <Share2 />}
+                  {copied ? "Link copied" : "Share"}
+                </Button>
+                <div className="ml-auto">
+                  <ViewerStack viewers={viewers} meId={me.id} />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="px-4 pt-3">
-            <h3 className="text-sm font-semibold">Suggestions</h3>
-            <p className="text-xs text-neutral-500">
-              {isOwner ? "Approve one and the agents redesign live" : "Pin a spot and describe your idea — the owner can apply it live"}
-            </p>
-          </div>
-          <Comments
-            houseId={house.id}
-            comments={comments}
-            spec={spec}
-            isOwner={isOwner}
-            busy={generating}
-            loginHref={user ? null : loginHref}
-            draft={draft}
-            placing={placing}
-            onStartPlacing={() => setPlacing(true)}
-            onClearDraft={() => setDraft(null)}
-          />
-        </aside>
-      )}
-    </div>
+            <Separator />
+            <div className="px-4 pt-3">
+              <h3 className="text-sm font-semibold">Suggestions</h3>
+              <p className="text-xs text-muted-foreground">
+                {isOwner ? "Approve one and the agents redesign live" : "Pin a spot and describe your idea — the owner can apply it live"}
+              </p>
+            </div>
+            <Comments
+              houseId={house.id}
+              comments={comments}
+              spec={spec}
+              isOwner={isOwner}
+              busy={generating}
+              loginHref={user ? null : loginHref}
+              draft={draft}
+              placing={placing}
+              onStartPlacing={() => setPlacing(true)}
+              onClearDraft={() => setDraft(null)}
+            />
+          </aside>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
 
 function ViewerStack({ viewers, meId }: { viewers: Viewer[]; meId: string }) {
   if (!viewers.length) return null;
   return (
-    <div className="flex -space-x-2" title={viewers.map((v) => (v.id === meId ? `${v.name} (you)` : v.name)).join(", ")}>
-      {viewers.slice(0, 5).map((v) => (
-        <span
-          key={v.id}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold uppercase text-white ring-2 ring-white dark:ring-neutral-900"
-          style={{ background: v.color }}
-        >
-          {v.name.slice(0, 1)}
-        </span>
-      ))}
-      {viewers.length > 5 && (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-700 text-xs text-white ring-2 ring-white">
-          +{viewers.length - 5}
-        </span>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <AvatarGroup>
+          {viewers.slice(0, 5).map((v) => (
+            <Avatar key={v.id}>
+              <AvatarFallback className="text-xs font-semibold uppercase text-white" style={{ background: v.color }}>
+                {v.name.slice(0, 1)}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+          {viewers.length > 5 && <AvatarGroupCount className="text-xs">+{viewers.length - 5}</AvatarGroupCount>}
+        </AvatarGroup>
+      </TooltipTrigger>
+      <TooltipContent>{viewers.map((v) => (v.id === meId ? `${v.name} (you)` : v.name)).join(", ")}</TooltipContent>
+    </Tooltip>
   );
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
-  approved: "bg-amber-100 text-amber-800",
-  applied: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-700",
+  pending: "",
+  approved: "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
+  applied: "border-transparent bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300",
+  rejected: "border-transparent bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
 };
 
 function Comments({
@@ -330,66 +359,76 @@ function Comments({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ul className="flex-1 space-y-3 overflow-y-auto p-4">
-        {comments.length === 0 && <li className="text-sm text-neutral-400">No suggestions yet. Try “add a home office”.</li>}
-        {comments.map((c) => (
-          <li key={c.id} className="rounded-lg border border-neutral-200 p-3 text-sm dark:border-neutral-800">
-            <div className="mb-1 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: colorFor(c.author_id) }} />
-              <span className="font-medium">{c.author_name}</span>
-              <span className={`ml-auto rounded px-1.5 py-0.5 text-xs ${STATUS_STYLE[c.status]}`}>{c.status}</span>
-            </div>
-            <p>{c.body}</p>
-            {c.pos_x !== null && c.pos_z !== null && (
-              <p className="mt-1 text-xs text-neutral-500">📍 {roomName(c.pos_x, c.pos_z)}</p>
-            )}
-            {isOwner && c.status === "pending" && (
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => moderate(c.id, "approve")}
-                  disabled={pending || busy}
-                  className="rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+      <ScrollArea className="min-h-0 flex-1">
+        <ul className="space-y-3 p-4">
+          {comments.length === 0 && <li className="text-sm text-muted-foreground">No suggestions yet. Try “add a home office”.</li>}
+          {comments.map((c) => (
+            <li key={c.id} className="rounded-lg border bg-card p-3 text-sm text-card-foreground">
+              <div className="mb-1 flex items-center gap-2">
+                <span className="size-2 rounded-full" style={{ background: colorFor(c.author_id) }} />
+                <span className="font-medium">{c.author_name}</span>
+                <Badge
+                  variant={c.status === "pending" ? "secondary" : "outline"}
+                  className={cn("ml-auto capitalize", STATUS_STYLE[c.status])}
                 >
-                  Approve &amp; redesign
-                </button>
-                <button onClick={() => moderate(c.id, "reject")} disabled={pending} className="px-2 py-1 text-xs text-neutral-500">
-                  Reject
-                </button>
+                  {c.status}
+                </Badge>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
+              <p>{c.body}</p>
+              {c.pos_x !== null && c.pos_z !== null && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="size-3" /> {roomName(c.pos_x, c.pos_z)}
+                </p>
+              )}
+              {isOwner && c.status === "pending" && (
+                <div className="mt-2 flex gap-2">
+                  <Button size="xs" onClick={() => moderate(c.id, "approve")} disabled={pending || busy}>
+                    Approve &amp; redesign
+                  </Button>
+                  <Button size="xs" variant="ghost" onClick={() => moderate(c.id, "reject")} disabled={pending} className="text-muted-foreground">
+                    Reject
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
+      <Separator />
       {loginHref ? (
-        <div className="border-t border-neutral-200 p-3 text-center text-sm dark:border-neutral-800">
-          <Link href={loginHref} className="font-medium underline">Sign in to suggest a change</Link>
+        <div className="p-3">
+          <Button asChild variant="outline" className="w-full">
+            <Link href={loginHref}>Sign in to suggest a change</Link>
+          </Button>
         </div>
       ) : (
-        <form onSubmit={submit} className="border-t border-neutral-200 p-3 dark:border-neutral-800">
-          {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-          <div className="mb-2 flex items-center gap-2 text-xs">
+        <form onSubmit={submit} className="p-3">
+          {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
+          <div className="mb-2 flex items-center gap-2">
             {draft ? (
-              <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 dark:bg-neutral-800">
-                📍 Pinned in {roomName(draft.x, draft.z)}
-                <button type="button" onClick={onClearDraft} aria-label="Remove pin" className="text-neutral-500">✕</button>
-              </span>
+              <Badge variant="secondary" className="gap-1 rounded-full py-1 pl-2 pr-1">
+                <MapPin className="size-3" /> Pinned in {roomName(draft.x, draft.z)}
+                <Button type="button" variant="ghost" size="icon-xs" onClick={onClearDraft} aria-label="Remove pin" className="size-4 rounded-full">
+                  <X />
+                </Button>
+              </Badge>
             ) : (
-              <button type="button" onClick={onStartPlacing} disabled={placing || !spec} className="rounded-full border border-neutral-300 px-2 py-1 disabled:opacity-40 dark:border-neutral-700">
-                {placing ? "Click in the house…" : "📍 Pin a spot"}
-              </button>
+              <Button type="button" variant="outline" size="xs" onClick={onStartPlacing} disabled={placing || !spec} className="rounded-full">
+                <MapPin /> {placing ? "Click in the house…" : "Pin a spot"}
+              </Button>
             )}
           </div>
           <div className="flex gap-2">
-            <input
+            <Input
               value={body}
               onChange={(e) => setBody(e.target.value)}
               maxLength={500}
               placeholder="Suggest a change…"
-              className="flex-1 rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
+              className="flex-1"
             />
-            <button disabled={pending || !body.trim()} className="rounded-md bg-neutral-900 px-3 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900">
+            <Button type="submit" disabled={pending || !body.trim()}>
               Post
-            </button>
+            </Button>
           </div>
         </form>
       )}

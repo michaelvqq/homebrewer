@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
+import { FolderInput, MoreHorizontal, Pin, PinOff } from "lucide-react";
 import { organizeHouse } from "@/app/h/actions";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Project = { id: string; title: string; status: string; pinned: boolean; group_name: string | null };
 
@@ -17,8 +27,8 @@ export function ProjectList({ houses }: { houses: Project[] }) {
   const recent = houses.filter((h) => !h.pinned && !h.group_name);
 
   return (
-    <nav className={`flex min-h-0 flex-col overflow-y-auto px-2 pb-2 ${onHouse ? "max-h-[38%] shrink-0" : "flex-1"}`}>
-      {!houses.length && <p className="px-2 pt-4 text-sm text-neutral-400">No houses yet.</p>}
+    <nav className={cn("flex min-h-0 flex-col overflow-y-auto px-2 pb-2", onHouse ? "max-h-[38%] shrink-0" : "flex-1")}>
+      {!houses.length && <p className="px-2 pt-4 text-sm text-muted-foreground">No houses yet.</p>}
       {pinned.length > 0 && <Section title="Pinned" items={pinned} groups={groups} />}
       {groups.map((g) => (
         <Section key={g} title={g} items={houses.filter((h) => !h.pinned && h.group_name === g)} groups={groups} />
@@ -32,7 +42,7 @@ export function ProjectList({ houses }: { houses: Project[] }) {
 function Section({ title, items, groups }: { title: string; items: Project[]; groups: string[] }) {
   return (
     <div className="pt-3">
-      <p className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">{title}</p>
+      <p className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
       {items.map((h) => <ProjectRow key={h.id} house={h} groups={groups} />)}
     </div>
   );
@@ -59,7 +69,7 @@ function ProjectRow({ house }: { house: Project; groups: string[] }) {
           setEditingGroup(false);
         }}
       >
-        <input
+        <Input
           name="group"
           list="project-groups"
           autoFocus
@@ -68,7 +78,7 @@ function ProjectRow({ house }: { house: Project; groups: string[] }) {
           maxLength={40}
           onBlur={() => setEditingGroup(false)}
           onKeyDown={(e) => e.key === "Escape" && setEditingGroup(false)}
-          className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="h-8"
         />
       </form>
     );
@@ -76,26 +86,41 @@ function ProjectRow({ house }: { house: Project; groups: string[] }) {
 
   return (
     <div
-      className={`group flex items-center gap-1 rounded-md pr-1 text-sm ${pending ? "opacity-50" : ""} ${active ? "bg-neutral-200 font-medium dark:bg-neutral-800" : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"}`}
+      className={cn(
+        "group flex items-center gap-0.5 rounded-md pr-1 text-sm",
+        pending && "opacity-50",
+        active
+          ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+      )}
     >
       <Link href={`/h/${house.id}`} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5">
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[house.status] ?? "bg-neutral-400"}`} />
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT[house.status] ?? "bg-muted-foreground")} />
         <span className="truncate">{house.title}</span>
       </Link>
-      <button
-        title={house.pinned ? "Unpin" : "Pin"}
-        onClick={() => organize({ pinned: !house.pinned })}
-        className={`rounded px-1 text-xs ${house.pinned ? "" : "opacity-0 group-hover:opacity-100"}`}
-      >
-        {house.pinned ? "📌" : "📍"}
-      </button>
-      <button
-        title="Move to group"
-        onClick={() => setEditingGroup(true)}
-        className="rounded px-1 text-xs opacity-0 group-hover:opacity-100"
-      >
-        ⋯
-      </button>
+      {house.pinned && <Pin className="size-3 shrink-0 text-muted-foreground group-hover:hidden" aria-label="Pinned" />}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Project actions"
+            className="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="right" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onSelect={() => organize({ pinned: !house.pinned })}>
+            {house.pinned ? <PinOff /> : <Pin />}
+            {house.pinned ? "Unpin" : "Pin"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setEditingGroup(true)}>
+            <FolderInput />
+            Move to group…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

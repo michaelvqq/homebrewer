@@ -1,7 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Settings } from "lucide-react";
 import { getSettings, saveSettings } from "@/app/settings/actions";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PROVIDER_IDS, PROVIDERS, type Provider } from "@/lib/ai/models";
 import type { SettingsView } from "@/lib/ai/settings";
 
@@ -13,8 +26,9 @@ export function SettingsButton() {
   const [error, setError] = useState<string | null>(null);
   const [, startLoading] = useTransition();
 
-  function openDialog() {
-    setOpen(true);
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) return;
     setError(null);
     startLoading(async () => {
       const result = await getSettings();
@@ -24,29 +38,33 @@ export function SettingsButton() {
   }
 
   return (
-    <>
-      <button onClick={openDialog} className="text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white">
-        Settings
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpen(false)}>
-          <div
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="mb-1 text-lg font-semibold">Agent model</h2>
-            <p className="mb-4 text-sm text-neutral-500">
-              Your houses are designed with your own API key. Keys are encrypted and never shown again.
-            </p>
-            {view ? (
-              <SettingsForm view={view} onSaved={(v) => { setView(v); setOpen(false); }} />
-            ) : (
-              <p className="text-sm text-neutral-500">{error ?? "Loading…"}</p>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-muted-foreground">
+          <Settings />
+          Settings
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Agent model</DialogTitle>
+          <DialogDescription>
+            Your houses are designed with your own API key. Keys are encrypted and never shown again.
+          </DialogDescription>
+        </DialogHeader>
+        {view ? (
+          <SettingsForm
+            view={view}
+            onSaved={(v) => {
+              setView(v);
+              setOpen(false);
+            }}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">{error ?? "Loading…"}</p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -78,52 +96,63 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: (v: Sett
     });
   }
 
-  const field = "w-full rounded-md border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700";
-
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <label className="text-sm font-medium">
-        Provider
-        <select value={provider} onChange={(e) => switchProvider(e.target.value as Provider)} className={`${field} mt-1`}>
-          {PROVIDER_IDS.map((p) => (
-            <option key={p} value={p}>{PROVIDERS[p].label}{view.savedKeys[p] ? " ✓" : ""}</option>
-          ))}
-        </select>
-      </label>
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="settings-provider">Provider</Label>
+        <Select value={provider} onValueChange={(v) => switchProvider(v as Provider)}>
+          <SelectTrigger id="settings-provider" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PROVIDER_IDS.map((p) => (
+              <SelectItem key={p} value={p}>
+                {PROVIDERS[p].label}
+                {view.savedKeys[p] ? " ✓" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <label className="text-sm font-medium">
-        Model
-        <select value={choice} onChange={(e) => setChoice(e.target.value)} className={`${field} mt-1`}>
-          {PROVIDERS[provider].models.map((m) => <option key={m} value={m}>{m}</option>)}
-          <option value={CUSTOM}>Custom model ID…</option>
-        </select>
-      </label>
-      {choice === CUSTOM && (
-        <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="model id" className={field} required />
-      )}
+      <div className="grid gap-2">
+        <Label htmlFor="settings-model">Model</Label>
+        <Select value={choice} onValueChange={setChoice}>
+          <SelectTrigger id="settings-model" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PROVIDERS[provider].models.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+            <SelectItem value={CUSTOM}>Custom model ID…</SelectItem>
+          </SelectContent>
+        </Select>
+        {choice === CUSTOM && (
+          <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="model id" required />
+        )}
+      </div>
 
-      <label className="text-sm font-medium">
-        {PROVIDERS[provider].label} API key
-        <input
+      <div className="grid gap-2">
+        <Label htmlFor="settings-key">{PROVIDERS[provider].label} API key</Label>
+        <Input
+          id="settings-key"
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder={saved ? `Saved ••••${saved} (leave blank to keep)` : PROVIDERS[provider].keyHint}
           autoComplete="off"
-          className={`${field} mt-1`}
           required={!saved}
         />
-      </label>
+      </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-1 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-      >
+      <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save"}
-      </button>
+      </Button>
     </form>
   );
 }
