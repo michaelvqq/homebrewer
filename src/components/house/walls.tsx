@@ -2,6 +2,7 @@
 
 import { Color } from "three";
 import { exteriorSpans, neighborDoors } from "@/lib/house/exterior";
+import { footprint, roomFloor, SLAB, slabPieces, STOREY } from "@/lib/house/floors";
 import { isOutdoor, type HouseSpec } from "@/lib/house/spec";
 
 export const WALL_HEIGHT = 2.6;
@@ -136,38 +137,47 @@ function Wall({ room, side, doors, windows, exterior }: { room: Room; side: Side
 
 export function RoomShell({ room, spec }: { room: Room; spec: HouseSpec }) {
   const sides: Side[] = ["n", "s", "e", "w"];
-  if (isOutdoor(room)) {
-    // Ground surface only (lawn, deck, patio, driveway), just above the grass and below indoor floors.
-    return (
-      <mesh position={[room.x + room.width / 2, 0.005, room.z + room.depth / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[room.width, room.depth]} />
-        <meshStandardMaterial color={room.floorColor} roughness={0.95} />
-      </mesh>
-    );
-  }
-  return (
-    <group>
+  const floor = roomFloor(room);
+  const roomFloors = new Map(spec.rooms.map((r) => [r.id, roomFloor(r)]));
+  // Upper storeys stand on a slab with a stairwell cut out above any stairs from the floor below.
+  const holes = spec.furniture.filter((f) => f.type === "stairs" && roomFloors.get(f.roomId) === floor - 1).map(footprint);
+  const ground =
+    floor === 0 ? (
       <mesh
-        position={[room.x + room.width / 2, 0.01, room.z + room.depth / 2]}
+        position={[room.x + room.width / 2, isOutdoor(room) ? 0.005 : 0.01, room.z + room.depth / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
         <planeGeometry args={[room.width, room.depth]} />
-        <meshStandardMaterial color={room.floorColor} roughness={0.85} />
+        <meshStandardMaterial color={room.floorColor} roughness={isOutdoor(room) ? 0.95 : 0.85} />
       </mesh>
-      {sides.map((side) => (
-        <Wall
-          key={side}
-          room={room}
-          side={side}
-          doors={[
-            ...spec.doors.filter((d) => d.roomId === room.id && d.wall === side),
-            ...neighborDoors(room, side, spec.rooms, spec.doors),
-          ]}
-          windows={spec.windows.filter((w) => w.roomId === room.id && w.wall === side)}
-          exterior={exteriorSpans(room, side, spec.rooms)}
-        />
-      ))}
+    ) : (
+      slabPieces({ x: room.x, z: room.z, w: room.width, d: room.depth }, holes).map((p, i) => (
+        <mesh key={i} position={[p.x + p.w / 2, -SLAB / 2 + 0.005, p.z + p.d / 2]} castShadow receiveShadow>
+          <boxGeometry args={[p.w, SLAB, p.d]} />
+          <meshStandardMaterial color={room.floorColor} roughness={0.85} />
+        </mesh>
+      ))
+    );
+
+  return (
+    <group position={[0, floor * STOREY, 0]}>
+      {ground}
+      {/* Outdoor zones (lawn, deck, patio, driveway) are a surface only, no walls. */}
+      {!isOutdoor(room) &&
+        sides.map((side) => (
+          <Wall
+            key={side}
+            room={room}
+            side={side}
+            doors={[
+              ...spec.doors.filter((d) => d.roomId === room.id && d.wall === side),
+              ...neighborDoors(room, side, spec.rooms, spec.doors),
+            ]}
+            windows={spec.windows.filter((w) => w.roomId === room.id && w.wall === side)}
+            exterior={exteriorSpans(room, side, spec.rooms)}
+          />
+        ))}
     </group>
   );
 }

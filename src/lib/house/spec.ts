@@ -7,6 +7,8 @@ const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const roomKind = z.enum(["indoor", "outdoor"]);
 export const roomSchema = z.object({
   id: z.string().min(1), name: z.string().min(1), kind: roomKind.optional(),
+  // Storey: 0 = ground floor, 1 = upstairs. Stored specs from before floors have none and are ground floor.
+  floor: z.number().int().min(0).max(3).optional(),
   x: z.number(), z: z.number(), width: z.number().min(1.5).max(30), depth: z.number().min(1.5).max(30),
   wallColor: hex, floorColor: hex,
 });
@@ -20,19 +22,19 @@ export const furnitureSchema = z.object({
   color: hex.optional(),
 });
 export const layoutSchema = z.object({
-  rooms: z.array(roomSchema).min(1).max(16), doors: z.array(openingSchema), windows: z.array(openingSchema),
+  rooms: z.array(roomSchema).min(1).max(32), doors: z.array(openingSchema), windows: z.array(openingSchema),
 });
 // What the architect is asked to produce: kind is required (OpenAI strict mode needs every property required).
 export const layoutLlmSchema = layoutSchema.extend({
-  rooms: z.array(roomSchema.extend({ kind: roomKind })).min(1).max(16),
+  rooms: z.array(roomSchema.extend({ kind: roomKind, floor: z.number().int().min(0).max(3) })).min(1).max(32),
 });
-export const furnishingSchema = z.object({ furniture: z.array(furnitureSchema).max(80) });
+export const furnishingSchema = z.object({ furniture: z.array(furnitureSchema).max(160) });
 export const houseSpecSchema = layoutSchema.extend(furnishingSchema.shape);
 
 // What the model is asked to produce. OpenAI strict mode needs every property required,
 // so the optional color becomes a required nullable (null = catalog default).
 export const furnishingLlmSchema = z.object({
-  furniture: z.array(furnitureSchema.extend({ color: hex.nullable() })).max(80),
+  furniture: z.array(furnitureSchema.extend({ color: hex.nullable() })).max(160),
 });
 
 export function fromLlmFurnishing(out: z.infer<typeof furnishingLlmSchema>): z.infer<typeof furnishingSchema> {
@@ -72,7 +74,7 @@ function toIndoorWall(all: Room[], zone: Room, door: Opening): Opening | null {
   const start = (alongX ? zone.x : zone.z) + door.offset;
   const wall = OPPOSITE[door.wall];
   for (const r of all) {
-    if (isOutdoor(r)) continue;
+    if (isOutdoor(r) || (r.floor ?? 0) !== 0) continue;
     const rLine = wall === "n" ? r.z : wall === "s" ? r.z + r.depth : wall === "w" ? r.x : r.x + r.width;
     const rStart = alongX ? r.x : r.z;
     const rLen = alongX ? r.width : r.depth;

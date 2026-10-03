@@ -10,6 +10,12 @@ Rules:
 - Put windows on exterior walls, 1-2 m wide.
 - Choose tasteful hex colors that match the requested style: light walls, wood or tile floors (tile for bathrooms and kitchens).
 - Room ids are short slugs (e.g. "living", "bed1"). Room names are human-readable.
+Storeys:
+- Every room has a floor: 0 = ground floor, 1 = upstairs, 2 = a third storey. Keep everything on floor 0 unless the brief or a change asks for two or more stories, floors or levels, an upstairs, a second floor or a loft; then build every requested storey.
+- Upper floors use the same x/z coordinates as the ground floor and must sit inside the ground floor's footprint: every upper room is directly above ground-floor rooms. Aim for the upper outline to match the ground floor's main block.
+- Stairs: give the ground floor a stair hall or hallway at least 1.2 x 3.5 m, and put an upstairs landing or hallway directly above it (same x/z overlap), so the stairwell lines up. Repeat for each storey above.
+- Typical split: living, kitchen, dining, entry and a small bathroom downstairs; bedrooms, bathrooms and a landing hallway upstairs. Doors only connect rooms on the same floor; there is no front door upstairs. Upper-floor rooms still get windows on their exterior walls.
+- Outdoor zones are always on floor 0. Room ids are unique across all floors.
 Outdoor zones:
 - Every room has kind "indoor" or "outdoor". Outdoor zones (backyard, patio, deck, garden, pool area, front yard, driveway) are rectangles with a ground surface and NO walls; they sit outside the house footprint and share an edge with it. They must not overlap rooms or each other.
 - Every house gets a front yard (lawn, on the front-door side, 4-6 m deep, as wide as the house) and a backyard (lawn behind the house, with a patio or deck against it), even when the brief doesn't mention them. Only apartments, studios and lofts skip yards.
@@ -37,6 +43,10 @@ Rules:
 - Place items sensibly: beds and sofas against walls, a rug under the sofa or bed, chairs around tables, a toilet and bathtub in bathrooms, counter and fridge in the kitchen, plants in corners. Don't block doors.
 - Furnish every room; 3-8 items per room. Optional color is a hex string that fits the style.
 - Item ids are short unique slugs.
+Storeys (rooms have a floor; 0 = ground):
+- For every floor below the top one, place exactly one "stairs" item in that floor's stair hall or hallway, right against a wall, where the room directly above overlaps it. Stairs are 1.0 x 3.0 m at rotation 0 and climb toward +z; at rotation 90 they are 3.0 x 1.0 and climb toward +x; 180 climbs toward -z; 270 toward -x.
+- Upstairs, keep the area directly above the stairs completely clear: it is the open stairwell.
+- Furnish every room on every floor; an item's x/z are on its own room's floor.
 Outdoor zones (rooms with kind "outdoor"):
 - Use outdoor items there: ${OUTDOOR_TYPES.join(", ")}; plus table, chair and plant for outdoor dining. Never put outdoor-only items (tree, pool, grill, fence, lounger, umbrella, flowerbed, bush) indoors.
 - Pool goes in the back half of the backyard (never the front yard), at least 2 m from the house and 1.5 m from the yard edges; loungers beside the pool on the coping. Grill on the patio or deck edge nearest the kitchen, at least 1.2 m from the house with 0.9 m clear around it; an outdoor table with chairs on the patio (needs about 3 x 3 m for 4 seats) with an umbrella over it; keep 0.75 m from the patio edges.

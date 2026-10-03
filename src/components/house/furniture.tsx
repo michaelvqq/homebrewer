@@ -136,6 +136,23 @@ function Parts({ type, color }: { type: FurnitureType; color: string }) {
           </mesh>
         </>
       );
+    case "stairs": {
+      // Solid steps rising toward +z, with a handrail on the east side.
+      const n = 14;
+      const rise = h / n;
+      const run = d / n;
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => (
+            <Box key={i} pos={[0, ((i + 1) * rise) / 2, -d / 2 + (i + 0.5) * run]} size={[w, (i + 1) * rise, run]} color={i % 2 ? color : shade(color, 0.08)} />
+          ))}
+          <mesh position={[w / 2 - 0.03, h / 2 + 0.9, 0]} rotation={[-Math.atan2(h, d), 0, 0]} castShadow>
+            <boxGeometry args={[0.05, 0.05, Math.hypot(h, d)]} />
+            <meshStandardMaterial color={dark} roughness={0.6} />
+          </mesh>
+        </>
+      );
+    }
     case "rug":
       return <Box pos={[0, 0.02, 0]} size={[w, h, d]} color={color} />;
     case "tree":
@@ -225,16 +242,17 @@ function Parts({ type, color }: { type: FurnitureType; color: string }) {
   }
 }
 
-export function FurnitureItem({ item }: { item: Item }) {
+export function FurnitureItem({ item, y = 0 }: { item: Item; y?: number }) {
   if (!CATALOG[item.type]) return null;
   const color = item.color ?? CATALOG[item.type].color;
   return (
-    <group position={[item.x, 0, item.z]} rotation={[0, (item.rotation * Math.PI) / 180, 0]}>
+    <group position={[item.x, y, item.z]} rotation={[0, (item.rotation * Math.PI) / 180, 0]}>
       <Parts type={item.type} color={color} />
     </group>
   );
 }
-export function Furniture({ items, visible }: { items: Item[]; visible: boolean }) {
+// `floorY` gives each item's storey height (by its room); items it returns null for are hidden.
+export function Furniture({ items, visible, floorY }: { items: Item[]; visible: boolean; floorY: (roomId: string) => number | null }) {
   const ref = useRef<Group>(null);
   // Initial scale only; afterwards useFrame animates it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,9 +268,10 @@ export function Furniture({ items, visible }: { items: Item[]; visible: boolean 
   });
   return (
     <group ref={ref} scale={initialScale}>
-      {items.map((item) => (
-        <FurnitureItem key={item.id} item={item} />
-      ))}
+      {items.map((item) => {
+        const y = floorY(item.roomId);
+        return y === null ? null : <FurnitureItem key={item.id} item={item} y={y} />;
+      })}
     </group>
   );
 }

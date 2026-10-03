@@ -23,26 +23,30 @@ function isTyping(target: EventTarget | null) {
 export function WalkControls({
   selector,
   offset,
+  baseY = 0,
   onMove,
 }: {
   selector: string;
   offset: { x: number; z: number };
+  baseY?: number; // floor height of the storey being walked
   onMove?: (pos: { x: number; z: number; yaw: number }) => void;
 }) {
   const get = useThree((s) => s.get);
   const keys = useRef(new Set<string>());
   const onMoveRef = useRef(onMove);
   const offsetRef = useRef(offset);
+  const baseRef = useRef(baseY);
   const lastSent = useRef({ t: 0, x: NaN, z: NaN, yaw: NaN });
 
   useEffect(() => {
     onMoveRef.current = onMove;
     offsetRef.current = offset;
+    baseRef.current = baseY;
   });
 
   useEffect(() => {
     const { camera } = get();
-    camera.position.set(0, EYE_HEIGHT, 0);
+    camera.position.set(0, baseRef.current + EYE_HEIGHT, 0);
     camera.rotation.set(0, 0, 0, "YXZ");
     const down = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return;
@@ -84,7 +88,7 @@ export function WalkControls({
       const step = SPEED * Math.min(dt, 0.1) / Math.hypot(f, r);
       camera.position.addScaledVector(fwd.current, f * step).addScaledVector(right.current, r * step);
     }
-    camera.position.y = EYE_HEIGHT;
+    camera.position.y = baseRef.current + EYE_HEIGHT;
 
     const now = state.clock.elapsedTime;
     const last = lastSent.current;

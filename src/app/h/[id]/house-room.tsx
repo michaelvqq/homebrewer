@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { levels } from "@/lib/house/floors";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema, type HouseSpec } from "@/lib/house/spec";
@@ -53,6 +54,10 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const spec = parsed?.success ? parsed.data : null;
 
   const [showFurniture, setShowFurniture] = useState(true);
+  // Storey cutaway: "all", or a floor number (that floor and the ones below; walk mode walks on it).
+  const [floorView, setFloorView] = useState<"all" | number>("all");
+  const floors = spec ? levels(spec) : [0];
+  const visibleFloor = floorView === "all" || !floors.includes(floorView) ? null : floorView;
   const [clockTime, setClockTime] = useState(14); // per-viewer time of day, 0-24h
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
   const [panelOpen, setPanelOpen] = useState(true);
@@ -129,6 +134,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
             spec={spec}
             showFurniture={showFurniture}
             clockTime={clockTime}
+            visibleFloor={visibleFloor}
             mode={mode}
             avatars={room.avatars}
             onMove={room.sendMove}
@@ -170,6 +176,25 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
                 <ToggleGroupItem value="orbit" className="px-3">Overview</ToggleGroupItem>
                 <ToggleGroupItem value="walk" className="px-3">Walk</ToggleGroupItem>
               </ToggleGroup>
+              {floors.length > 1 && (
+                <>
+                  <Separator orientation="vertical" className="h-5" />
+                  <ToggleGroup
+                    type="single"
+                    size="sm"
+                    value={visibleFloor === null ? "all" : String(visibleFloor)}
+                    onValueChange={(v) => v && setFloorView(v === "all" ? "all" : Number(v))}
+                    aria-label="Floors"
+                  >
+                    <ToggleGroupItem value="all" className="px-3">All</ToggleGroupItem>
+                    {floors.map((f) => (
+                      <ToggleGroupItem key={f} value={String(f)} className="px-3" aria-label={`Floor ${f + 1}`}>
+                        {f === 0 ? "1F" : `${f + 1}F`}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </>
+              )}
               <Separator orientation="vertical" className="h-5" />
               <Label className="cursor-pointer pr-2 text-sm font-normal">
                 <Switch size="sm" checked={showFurniture} onCheckedChange={setShowFurniture} disabled={!spec} />

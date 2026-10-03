@@ -15,7 +15,7 @@ export function exteriorSpans(room: Room, side: Side, rooms: Room[]): [number, n
 
   const covered: [number, number][] = [];
   for (const o of rooms) {
-    if (o.id === room.id || isOutdoor(o)) continue;
+    if (o.id === room.id || isOutdoor(o) || (o.floor ?? 0) !== (room.floor ?? 0)) continue;
     const far = side === "n" ? o.z + o.depth : side === "s" ? o.z : side === "w" ? o.x + o.width : o.x;
     if (Math.abs(far - line) > EPS) continue;
     const a = Math.max(0, (alongX ? o.x : o.z) - start);
@@ -46,7 +46,7 @@ export function neighborDoors(room: Room, side: Side, rooms: Room[], doors: Hous
   for (const d of doors) {
     if (d.roomId === room.id || d.wall !== OPPOSITE[side]) continue;
     const o = rooms.find((r) => r.id === d.roomId);
-    if (!o || isOutdoor(o)) continue;
+    if (!o || isOutdoor(o) || (o.floor ?? 0) !== (room.floor ?? 0)) continue;
     const far = side === "n" ? o.z + o.depth : side === "s" ? o.z : side === "w" ? o.x + o.width : o.x;
     if (Math.abs(far - line) > EPS) continue;
     out.push({ ...d, roomId: room.id, wall: side, offset: (alongX ? o.x : o.z) + d.offset - start });

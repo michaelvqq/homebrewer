@@ -24,7 +24,8 @@ function describe(spec: HouseSpec) {
   return spec.rooms
     .map((r) => {
       const items = spec.furniture.filter((f) => f.roomId === r.id).map((f) => f.type);
-      return `- ${r.name}${isOutdoor(r) ? " (outdoor)" : ""}: ${items.length ? items.join(", ") : "empty"}`;
+      const where = isOutdoor(r) ? " (outdoor)" : (r.floor ?? 0) > 0 ? ` (floor ${(r.floor ?? 0) + 1})` : "";
+      return `- ${r.name}${where}: ${items.length ? items.join(", ") : "empty"}`;
     })
     .join("\n");
 }
@@ -39,7 +40,7 @@ export async function routeEdit(model: LanguageModel, spec: HouseSpec, request: 
   const context = `House rooms and furniture:\n${describe(spec)}\n\nRequest${where}: "${request}"`;
   const op = await decide(
     model,
-    `${context}\n\nWhich single operation best fulfils the request? Use "redesign layout" for anything that adds, removes or resizes rooms or outdoor areas (a backyard, patio, deck, garden, pool, lawn or driveway that isn't listed above), changes doors or windows, or needs several different changes.`,
+    `${context}\n\nWhich single operation best fulfils the request? Use "redesign layout" for anything that adds, removes or resizes rooms, storeys/floors or outdoor areas (a backyard, patio, deck, garden, pool, lawn or driveway that isn't listed above), changes doors or windows, or needs several different changes.`,
     [...OPS],
   );
 

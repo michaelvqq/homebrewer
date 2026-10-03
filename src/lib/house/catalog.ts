@@ -1,4 +1,4 @@
-export const INDOOR_TYPES = ["bed","sofa","table","chair","desk","toilet","bathtub","counter","fridge","bookshelf","plant","rug"] as const;
+export const INDOOR_TYPES = ["bed","sofa","table","chair","desk","toilet","bathtub","counter","fridge","bookshelf","plant","rug","stairs"] as const;
 export const OUTDOOR_TYPES = ["tree","bush","flowerbed","lounger","grill","pool","fence","umbrella"] as const;
 export const FURNITURE_TYPES = [...INDOOR_TYPES, ...OUTDOOR_TYPES] as const;
 export type FurnitureType = (typeof FURNITURE_TYPES)[number];
@@ -15,6 +15,8 @@ export const CATALOG: Record<FurnitureType, { w: number; d: number; h: number; c
   bookshelf: { w: 1.0, d: 0.35, h: 1.9, color: "#7a5230" },
   plant: { w: 0.5, d: 0.5, h: 1.1, color: "#3f7d4e" },
   rug: { w: 2.0, d: 1.4, h: 0.02, color: "#b5654a" },
+  // Rises one full storey along its depth (from the -z end at rotation 0).
+  stairs: { w: 1.0, d: 3.0, h: 2.8, color: "#a07850" },
   tree: { w: 2.0, d: 2.0, h: 4.5, color: "#3d7a3a" },
   bush: { w: 0.9, d: 0.9, h: 0.9, color: "#4f8a3f" },
   flowerbed: { w: 2.0, d: 0.7, h: 0.35, color: "#d9668a" },

@@ -5,6 +5,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { Billboard, OrbitControls, Text } from "@react-three/drei";
 import type { HouseSpec } from "@/lib/house/spec";
 import { LABEL_FONT } from "./label-font";
+import { roomFloor, STOREY } from "@/lib/house/floors";
 import { RoomShell } from "./walls";
 import { Furniture } from "./furniture";
 import { WalkControls } from "./walk-controls";
@@ -79,6 +80,7 @@ export function HouseScene({
   pins = [],
   onPick,
   clockTime = 14,
+  visibleFloor = null,
 }: {
   spec: HouseSpec | null;
   showFurniture: boolean;
@@ -88,11 +90,22 @@ export function HouseScene({
   pins?: Pin[];
   onPick?: (pos: { x: number; z: number }) => void; // set while the user is placing a pin
   clockTime?: number; // 0-24h, drives the sun and sky
+  visibleFloor?: number | null; // show storeys up to this one (null = all); walk mode walks on it
 }) {
   const sceneId = useId();
   const selector = `[data-house-scene="${sceneId}"] canvas`;
   const bounds = useMemo(() => houseBounds(spec), [spec]);
   const offset = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds]);
+  const shown = (room: { floor?: number }) => visibleFloor === null || roomFloor(room) <= visibleFloor;
+  const rooms = spec?.rooms.filter(shown) ?? [];
+  const floorY = useMemo(() => {
+    const byId = new Map((spec?.rooms ?? []).map((r) => [r.id, r]));
+    return (roomId: string) => {
+      const r = byId.get(roomId);
+      if (!r) return 0;
+      return visibleFloor === null || roomFloor(r) <= visibleFloor ? roomFloor(r) * STOREY : null;
+    };
+  }, [spec, visibleFloor]);
 
   return (
     <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#c3d6ea] ${onPick ? "cursor-crosshair" : ""}`}>
@@ -108,18 +121,19 @@ export function HouseScene({
             onPick({ x: Math.round((e.point.x + bounds.cx) * 100) / 100, z: Math.round((e.point.z + bounds.cz) * 100) / 100 });
           }}
         >
-          {spec?.rooms.map((room) => (
-            <RoomShell key={room.id} room={room} spec={spec} />
-          ))}
-          {spec && <Furniture items={spec.furniture} visible={showFurniture} />}
+          {spec &&
+            rooms.map((room) => (
+              <RoomShell key={room.id} room={room} spec={spec} />
+            ))}
+          {spec && <Furniture items={spec.furniture} visible={showFurniture} floorY={floorY} />}
           <Avatars avatars={avatars} />
           {pins.map((pin) => (
             <PinMarker key={pin.id} pin={pin} />
           ))}
           <Suspense fallback={null}>
             {mode === "orbit" &&
-              spec?.rooms.map((room) => (
-                <Billboard key={room.id} position={[room.x + room.width / 2, 2.8, room.z + room.depth / 2]}>
+              rooms.map((room) => (
+                <Billboard key={room.id} position={[room.x + room.width / 2, roomFloor(room) * STOREY + 2.8, room.z + room.depth / 2]}>
                   <Text font={LABEL_FONT} fontSize={0.4} color="#1f2937" outlineWidth={0.02} outlineColor="#ffffff" anchorX="center" anchorY="middle">
                     {room.name}
                   </Text>
@@ -131,7 +145,7 @@ export function HouseScene({
         {mode === "orbit" ? (
           <OrbitRig key="orbit" size={bounds.size} empty={!spec} />
         ) : (
-          <WalkControls key="walk" selector={selector} offset={offset} onMove={onMove} />
+          <WalkControls key="walk" selector={selector} offset={offset} baseY={(visibleFloor ?? 0) * STOREY} onMove={onMove} />
         )}
       </Canvas>
     </div>
