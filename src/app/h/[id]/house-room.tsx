@@ -3,21 +3,24 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { Check, Heart, Loader2, MapPin, MessageSquare, RotateCw, Share2, X } from "lucide-react";
+import { Check, Clock, Heart, Loader2, MapPin, MessageSquare, RotateCw, Share2, X } from "lucide-react";
 import type { Pin } from "@/components/house/house-scene";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema, type HouseSpec } from "@/lib/house/spec";
+import { formatClock } from "@/lib/house/sun";
 import { isStaleGenerating } from "@/lib/house/sync";
 import { colorFor, useHouseRoom, type CommentRow, type HouseRow, type Viewer } from "@/lib/realtime/use-house-room";
 import { cn } from "@/lib/utils";
@@ -50,6 +53,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const spec = parsed?.success ? parsed.data : null;
 
   const [showFurniture, setShowFurniture] = useState(true);
+  const [clockTime, setClockTime] = useState(14); // per-viewer time of day, 0-24h
   const [mode, setMode] = useState<"orbit" | "walk">("orbit");
   const [panelOpen, setPanelOpen] = useState(true);
   // Pinning a suggestion: while `placing`, a click in the scene sets `draft` (house coordinates).
@@ -81,7 +85,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const [dismissedVersion, setDismissedVersion] = useState<number | null>(null);
   const notice =
     house.status === "ready" && house.version > openedAtVersion && dismissedVersion !== house.version
-      ? house.status_message ?? `Redesigned · v${house.version}`
+      ? house.status_message ?? (house.version === 1 ? "Built · v1" : `Redesigned · v${house.version}`)
       : null;
   useEffect(() => {
     if (!notice) return;
@@ -124,6 +128,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
           <HouseScene
             spec={spec}
             showFurniture={showFurniture}
+            clockTime={clockTime}
             mode={mode}
             avatars={room.avatars}
             onMove={room.sendMove}
@@ -170,6 +175,8 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
                 <Switch size="sm" checked={showFurniture} onCheckedChange={setShowFurniture} disabled={!spec} />
                 Furniture
               </Label>
+              <Separator orientation="vertical" className="h-5" />
+              <TimeOfDay value={clockTime} onChange={setClockTime} />
             </div>
             {mode === "walk" && (
               <p className={cn(overlay, "w-fit px-3 py-1.5 text-xs text-muted-foreground")}>
@@ -277,6 +284,65 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
         )}
       </div>
     </TooltipProvider>
+  );
+}
+
+const TIME_PRESETS = [
+  { label: "Dawn", value: 6.5 },
+  { label: "Noon", value: 12 },
+  { label: "Golden hour", value: 17.25 },
+  { label: "Night", value: 22 },
+];
+
+// Like Roblox's Lighting.ClockTime: moves the sun, sky and shadows. Local to this viewer.
+function TimeOfDay({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-normal tabular-nums">
+              <Clock className="size-4" /> {formatClock(value)}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Time of day</TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" className="w-72">
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="text-sm font-medium">Time of day</p>
+          <p className="text-sm tabular-nums text-muted-foreground">{formatClock(value)}</p>
+        </div>
+        <Slider
+          min={0}
+          max={24}
+          step={0.25}
+          value={[value]}
+          onValueChange={([v]) => onChange(v)}
+          aria-label="Time of day"
+        />
+        <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
+          <span>00:00</span>
+          <span>06:00</span>
+          <span>12:00</span>
+          <span>18:00</span>
+          <span>24:00</span>
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-1">
+          {TIME_PRESETS.map((p) => (
+            <Button
+              key={p.label}
+              size="xs"
+              variant={value === p.value ? "secondary" : "ghost"}
+              onClick={() => onChange(p.value)}
+              className="px-1 text-xs"
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

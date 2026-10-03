@@ -2,12 +2,13 @@
 
 import { Suspense, useEffect, useId, useMemo } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { Billboard, Grid, OrbitControls, Text } from "@react-three/drei";
+import { Billboard, OrbitControls, Text } from "@react-three/drei";
 import type { HouseSpec } from "@/lib/house/spec";
 import { RoomShell } from "./walls";
 import { Furniture } from "./furniture";
 import { WalkControls } from "./walk-controls";
 import { Avatars, type Avatar } from "./avatars";
+import { World } from "./world";
 
 export type { Avatar };
 export type Pin = { id: string; x: number; z: number; label: string; color: string };
@@ -46,14 +47,16 @@ function houseBounds(spec: HouseSpec | null): Bounds {
   return { cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2, size: Math.max(maxX - minX, maxZ - minZ, 4) };
 }
 
-function OrbitRig({ size }: { size: number }) {
+function OrbitRig({ size, empty }: { size: number; empty: boolean }) {
   const get = useThree((s) => s.get);
   useEffect(() => {
     const { camera } = get();
     const d = size * 0.85 + 4;
-    camera.position.set(d * 0.35, d * 0.75, d * 0.75);
+    // An empty lot gets a low, wide angle so the horizon and sky are in view.
+    if (empty) camera.position.set(d * 0.9, d * 0.28, d * 1.1);
+    else camera.position.set(d * 0.35, d * 0.75, d * 0.75);
     camera.lookAt(0, 0, 0);
-  }, [get, size]);
+  }, [get, size, empty]);
   return (
     <OrbitControls
       makeDefault
@@ -74,6 +77,7 @@ export function HouseScene({
   onMove,
   pins = [],
   onPick,
+  clockTime = 14,
 }: {
   spec: HouseSpec | null;
   showFurniture: boolean;
@@ -82,52 +86,17 @@ export function HouseScene({
   onMove?: (pos: { x: number; z: number; yaw: number }) => void;
   pins?: Pin[];
   onPick?: (pos: { x: number; z: number }) => void; // set while the user is placing a pin
+  clockTime?: number; // 0-24h, drives the sun and sky
 }) {
   const sceneId = useId();
   const selector = `[data-house-scene="${sceneId}"] canvas`;
   const bounds = useMemo(() => houseBounds(spec), [spec]);
   const offset = useMemo(() => ({ x: bounds.cx, z: bounds.cz }), [bounds]);
-  const shadowExtent = bounds.size / 2 + 4;
 
   return (
-    <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#d6ecfa] ${onPick ? "cursor-crosshair" : ""}`}>
-      <Canvas shadows camera={{ fov: 55, near: 0.05, far: 500, position: [8, 10, 12] }} dpr={[1, 2]}>
-        <color attach="background" args={["#d6ecfa"]} />
-        <fog attach="fog" args={["#d6ecfa", 40, 140]} />
-        <hemisphereLight args={["#ffffff", "#8fbf6a", 0.6]} />
-        <ambientLight intensity={0.35} />
-        <directionalLight
-          position={[bounds.size * 0.6 + 6, 14, bounds.size * 0.4 + 5]}
-          intensity={1.6}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-bias={-0.0005}
-          shadow-camera-left={-shadowExtent}
-          shadow-camera-right={shadowExtent}
-          shadow-camera-top={shadowExtent}
-          shadow-camera-bottom={-shadowExtent}
-          shadow-camera-near={0.5}
-          shadow-camera-far={80}
-        />
-
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <planeGeometry args={[400, 400]} />
-          <meshStandardMaterial color="#8fbf6a" roughness={1} />
-        </mesh>
-
-        {/* Empty lot: a faint grid so the blank viewport still reads as a space to build in. */}
-        {!spec && (
-          <Grid
-            position={[0, 0.01, 0]}
-            args={[60, 60]}
-            cellSize={1}
-            sectionSize={5}
-            cellColor="#6f9a50"
-            sectionColor="#4f7a36"
-            fadeDistance={45}
-            infiniteGrid
-          />
-        )}
+    <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#c3d6ea] ${onPick ? "cursor-crosshair" : ""}`}>
+      <Canvas shadows="soft" camera={{ fov: 55, near: 0.05, far: 1000, position: [8, 10, 12] }} dpr={[1, 2]}>
+        <World clockTime={clockTime} size={bounds.size} />
 
         {/* Everything inside this group is in house coordinates. */}
         <group
@@ -159,7 +128,7 @@ export function HouseScene({
         </group>
 
         {mode === "orbit" ? (
-          <OrbitRig key="orbit" size={bounds.size} />
+          <OrbitRig key="orbit" size={bounds.size} empty={!spec} />
         ) : (
           <WalkControls key="walk" selector={selector} offset={offset} onMove={onMove} />
         )}
