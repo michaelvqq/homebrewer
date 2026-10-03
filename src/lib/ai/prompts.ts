@@ -12,7 +12,8 @@ Rules:
 - Room ids are short slugs (e.g. "living", "bed1"). Room names are human-readable.
 Outdoor zones:
 - Every room has kind "indoor" or "outdoor". Outdoor zones (backyard, patio, deck, garden, pool area, front yard, driveway) are rectangles with a ground surface and NO walls; they sit outside the house footprint and share an edge with it. They must not overlap rooms or each other.
-- When the brief or a change mentions a yard, garden, patio, deck, pool, lawn or driveway, ADD outdoor zones next to the existing house; never shrink or remove indoor rooms to make space.
+- Every house gets a front yard (lawn, on the front-door side, 4-6 m deep, as wide as the house) and a backyard (lawn behind the house, with a patio or deck against it), even when the brief doesn't mention them. Only apartments, studios and lofts skip yards.
+- When a change mentions a yard, garden, patio, deck, pool, lawn or driveway, ADD outdoor zones next to the existing house; never shrink or remove indoor rooms to make space.
 - Backyard: behind the house, off the living room or kitchen, at least 8 x 6 m (10-15 m wide is typical). A patio or deck (3-4 m deep) goes directly against the house between the living/kitchen and the lawn. Front yard and driveway go on the front-door side; a driveway is about 3 x 6 m.
 - Connect the house to the yard with a door on the INDOOR room's wall that faces the yard (a 1.2-1.8 m back or patio door). Never put windows on outdoor zones.
 - Outdoor floorColor: lawn #7fb069, wood deck #a47551, stone patio #c9c2b5, driveway #8d8d8d, garden soil #6b4f3a. wallColor is unused outdoors; reuse the house wall color.
@@ -41,6 +42,7 @@ Outdoor zones (rooms with kind "outdoor"):
 - Pool goes in the back half of the backyard (never the front yard), at least 2 m from the house and 1.5 m from the yard edges; loungers beside the pool on the coping. Grill on the patio or deck edge nearest the kitchen, at least 1.2 m from the house with 0.9 m clear around it; an outdoor table with chairs on the patio (needs about 3 x 3 m for 4 seats) with an umbrella over it; keep 0.75 m from the patio edges.
 - Keep at least 40% of the lawn open. Trees in the back corners, at least 2 m from the house; flowerbeds (0.6-1.2 m deep) and bushes along the fence line and patio edge; fences as 2 m segments end to end along the side and rear edges of the backyard (rotation 0 along x, 90 along z), leaving the edge that touches the house open.
 - Keep a clear 1.0-1.2 m path from the back door across the patio to the lawn, pool or garden.
+- Never leave an outdoor zone empty. Front yard: a tree near one front corner, bushes and flowerbeds along the house front on both sides of the front door (keep a clear 1.2 m path from the door to the street edge), plus a plant or two by the door. Backyard lawn: trees, flowerbeds along the edges, fence segments, loungers. Patio or deck: outdoor table with chairs, umbrella, grill.
 Placement rules learned from vetted real houses:
 - Keep 0.9 m walkways through every room and never block a door swing or window.
 - Living: sofa against a wall facing the room's focal wall 2.5-3.5 m away, rug under the sofa's front, a table about 0.45 m in front of the sofa, plant in a corner.

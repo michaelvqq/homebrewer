@@ -33,3 +33,23 @@ export function exteriorSpans(room: Room, side: Side, rooms: Room[]): [number, n
   if (length - cursor > EPS) spans.push([cursor, length]);
   return spans;
 }
+
+const OPPOSITE: Record<Side, Side> = { n: "s", s: "n", e: "w", w: "e" };
+
+// Doors that other rooms put on the far side of this wall, re-expressed on this room's wall,
+// so the shared wall is open from both sides.
+export function neighborDoors(room: Room, side: Side, rooms: Room[], doors: HouseSpec["doors"]): HouseSpec["doors"] {
+  const alongX = side === "n" || side === "s";
+  const line = side === "n" ? room.z : side === "s" ? room.z + room.depth : side === "w" ? room.x : room.x + room.width;
+  const start = alongX ? room.x : room.z;
+  const out: HouseSpec["doors"] = [];
+  for (const d of doors) {
+    if (d.roomId === room.id || d.wall !== OPPOSITE[side]) continue;
+    const o = rooms.find((r) => r.id === d.roomId);
+    if (!o || isOutdoor(o)) continue;
+    const far = side === "n" ? o.z + o.depth : side === "s" ? o.z : side === "w" ? o.x + o.width : o.x;
+    if (Math.abs(far - line) > EPS) continue;
+    out.push({ ...d, roomId: room.id, wall: side, offset: (alongX ? o.x : o.z) + d.offset - start });
+  }
+  return out;
+}

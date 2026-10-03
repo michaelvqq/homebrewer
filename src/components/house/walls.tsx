@@ -1,7 +1,7 @@
 "use client";
 
 import { Color } from "three";
-import { exteriorSpans } from "@/lib/house/exterior";
+import { exteriorSpans, neighborDoors } from "@/lib/house/exterior";
 import { isOutdoor, type HouseSpec } from "@/lib/house/spec";
 
 export const WALL_HEIGHT = 2.6;
@@ -95,14 +95,19 @@ function Wall({ room, side, doors, windows, exterior }: { room: Room; side: Side
       );
       return;
     }
-    parts.push(<Block key={`s${i}`} {...box(s.t0, s.t1, s.y0, s.y1, WALL_THICKNESS)} color={room.wallColor} shadow />);
-    if (s.y0 === 0) parts.push(<Block key={`b${i}`} {...box(s.t0, s.t1, 0, 0.1, WALL_THICKNESS + 0.03)} color={baseboard} />);
-    if (s.y1 === WALL_HEIGHT) parts.push(<Block key={`c${i}`} {...box(s.t0, s.t1, WALL_HEIGHT - 0.05, WALL_HEIGHT, WALL_THICKNESS + 0.04)} color={TRIM} />);
+    // Each room draws only the inner half of its walls, so two rooms sharing a wall never overlap
+    // (no z-fighting) and each side shows its own room's color. Exterior parts get their outer half below.
+    const T = WALL_THICKNESS;
+    parts.push(<Block key={`s${i}`} {...box(s.t0, s.t1, s.y0, s.y1, T / 2, -T / 4)} color={room.wallColor} shadow />);
+    if (s.y0 === 0) parts.push(<Block key={`b${i}`} {...box(s.t0, s.t1, 0, 0.1, 0.015, -(T / 2 + 0.0075))} color={baseboard} />);
+    if (s.y1 === WALL_HEIGHT)
+      parts.push(<Block key={`c${i}`} {...box(s.t0, s.t1, WALL_HEIGHT - 0.04, WALL_HEIGHT + 0.015, T + 0.04)} color={TRIM} />);
     // Lap siding on the parts of this segment that face outside.
     for (const [e0, e1] of exterior) {
       const t0 = Math.max(s.t0, e0);
       const t1 = Math.min(s.t1, e1);
       if (t1 - t0 < 0.05) continue;
+      parts.push(<Block key={`o${i}-${t0}`} {...box(t0, t1, s.y0, s.y1, WALL_THICKNESS / 2, WALL_THICKNESS / 4)} color={SIDING[1]} shadow />);
       for (let y = s.y0, k = Math.round(s.y0 / BOARD); y < s.y1 - 0.02; y += BOARD, k++) {
         const top = Math.min(s.y1, y + BOARD - 0.015);
         parts.push(<Block key={`x${i}-${t0}-${k}`} {...box(t0, t1, y, top, 0.025, WALL_THICKNESS / 2 + 0.0125)} color={SIDING[k % 2]} />);
@@ -154,7 +159,10 @@ export function RoomShell({ room, spec }: { room: Room; spec: HouseSpec }) {
           key={side}
           room={room}
           side={side}
-          doors={spec.doors.filter((d) => d.roomId === room.id && d.wall === side)}
+          doors={[
+            ...spec.doors.filter((d) => d.roomId === room.id && d.wall === side),
+            ...neighborDoors(room, side, spec.rooms, spec.doors),
+          ]}
           windows={spec.windows.filter((w) => w.roomId === room.id && w.wall === side)}
           exterior={exteriorSpans(room, side, spec.rooms)}
         />

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { exteriorSpans } from "./exterior";
+import { exteriorSpans, neighborDoors } from "./exterior";
 import type { HouseSpec } from "./spec";
 
 const room = (id: string, x: number, z: number, width: number, depth: number, kind?: "indoor" | "outdoor") => ({
@@ -29,4 +29,10 @@ test("a wall with no indoor neighbor is fully exterior", () => {
 test("a shared wall is interior; a partly shared wall keeps the uncovered part", () => {
   assert.deepEqual(exteriorSpans(rooms[1], "w", rooms), []);
   assert.deepEqual(exteriorSpans(rooms[0], "e", rooms), [[2, 4]]);
+});
+
+test("a neighbor's door on the shared wall opens this room's wall too, in this wall's coordinates", () => {
+  const doors: HouseSpec["doors"] = [{ roomId: "bed", wall: "w", offset: 0.5, width: 0.9 }];
+  assert.deepEqual(neighborDoors(rooms[0], "e", rooms, doors), [{ roomId: "living", wall: "e", offset: 0.5, width: 0.9 }]);
+  assert.deepEqual(neighborDoors(rooms[0], "w", rooms, doors), []);
 });
