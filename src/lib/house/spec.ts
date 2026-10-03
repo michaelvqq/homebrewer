@@ -20,6 +20,16 @@ export const layoutSchema = z.object({
 });
 export const furnishingSchema = z.object({ furniture: z.array(furnitureSchema).max(80) });
 export const houseSpecSchema = layoutSchema.extend(furnishingSchema.shape);
+
+// What the model is asked to produce. OpenAI strict mode needs every property required,
+// so the optional color becomes a required nullable (null = catalog default).
+export const furnishingLlmSchema = z.object({
+  furniture: z.array(furnitureSchema.extend({ color: hex.nullable() })).max(80),
+});
+
+export function fromLlmFurnishing(out: z.infer<typeof furnishingLlmSchema>): z.infer<typeof furnishingSchema> {
+  return { furniture: out.furniture.map(({ color, ...f }) => (color ? { ...f, color } : f)) };
+}
 export type HouseSpec = z.infer<typeof houseSpecSchema>;
 
 export function sanitizeSpec(spec: HouseSpec): HouseSpec {

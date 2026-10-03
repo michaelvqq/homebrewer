@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/supabase/database.types";
-import { furnishingSchema, layoutSchema, sanitizeSpec, type HouseSpec } from "@/lib/house/spec";
+import { fromLlmFurnishing, furnishingLlmSchema, layoutSchema, sanitizeSpec, type HouseSpec } from "@/lib/house/spec";
 import { ARCHITECT_SYSTEM, DESIGNER_SYSTEM, architectPrompt, designerPrompt } from "./prompts";
 import { loadUserModel } from "./settings";
 
@@ -41,10 +41,10 @@ export async function runPipeline({ supabase, houseId, prompt, current, change }
       model: loaded.model,
       system: DESIGNER_SYSTEM,
       prompt: designerPrompt(layout, prompt, current, change),
-      output: Output.object({ schema: furnishingSchema }),
+      output: Output.object({ schema: furnishingLlmSchema }),
     });
 
-    const spec = sanitizeSpec({ ...layout, ...furnishing });
+    const spec = sanitizeSpec({ ...layout, ...fromLlmFurnishing(furnishing) });
     const { data } = await supabase.from("houses").select("version").eq("id", houseId).single();
     await update({ spec: spec as Json, status: "ready", status_message: null, version: (data?.version ?? 0) + 1 });
     return true;
