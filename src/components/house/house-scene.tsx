@@ -90,7 +90,7 @@ export function HouseScene({
   const shadowExtent = bounds.size / 2 + 4;
 
   return (
-    <div data-house-scene={sceneId} className={`relative h-full w-full ${onPick ? "cursor-crosshair" : ""}`}>
+    <div data-house-scene={sceneId} className={`relative h-full w-full bg-[#d6ecfa] ${onPick ? "cursor-crosshair" : ""}`}>
       <Canvas shadows camera={{ fov: 55, near: 0.05, far: 500, position: [8, 10, 12] }} dpr={[1, 2]}>
         <color attach="background" args={["#d6ecfa"]} />
         <fog attach="fog" args={["#d6ecfa", 40, 140]} />

@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { Pin } from "@/components/house/house-scene";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema, type HouseSpec } from "@/lib/house/spec";
+import { isStaleGenerating } from "@/lib/house/sync";
 import { colorFor, useHouseRoom, type CommentRow, type HouseRow, type Viewer } from "@/lib/realtime/use-house-room";
 import { moderateComment, postComment, retryHouse, toggleLike } from "../actions";
 
@@ -51,6 +52,14 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const generating = house.status === "generating";
+  // Re-check every 30s so a run killed by the time limit offers Retry.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!generating) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [generating]);
+  const stale = isStaleGenerating(house.status, house.updated_at, now);
   const pendingCount = comments.filter((c) => c.status === "pending").length;
 
   // A brief "done" notice for every viewer when a change lands after this page opened.
@@ -171,7 +180,7 @@ export function HouseRoom({ user, isOwner, ...initial }: Props) {
             <span className="max-w-[420px] truncate">
               {house.status_message ?? (generating ? "Agents are working…" : "Something went wrong")}
             </span>
-            {house.status === "error" && isOwner && (
+            {(house.status === "error" || stale) && isOwner && (
               <button onClick={retry} className="ml-1 font-medium underline">Retry</button>
             )}
           </div>

@@ -17,3 +17,12 @@ export function decryptKey(encoded: string): string {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
 }
+
+// null when the key was sealed with a different KEY_ENCRYPTION_SECRET (e.g. saved locally, read on Vercel).
+export function tryDecryptKey(encoded: string): string | null {
+  try {
+    return decryptKey(encoded);
+  } catch {
+    return null;
+  }
+}

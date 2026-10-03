@@ -11,6 +11,12 @@ test("encryptKey round-trips and does not leak plaintext", async () => {
   assert.equal(decryptKey(sealed), secret);
 });
 
+test("tryDecryptKey returns null instead of throwing on a key sealed with another secret", async () => {
+  const { tryDecryptKey, encryptKey } = await import("./crypto");
+  assert.equal(tryDecryptKey("bm90.dmFsaWQ.Y2lwaGVy"), null);
+  assert.equal(tryDecryptKey(encryptKey("sk-ok")), "sk-ok");
+});
+
 test("tampered ciphertext fails to decrypt", async () => {
   const { encryptKey, decryptKey } = await import("./crypto");
   const [iv, tag, data] = encryptKey("sk-abc").split(".");

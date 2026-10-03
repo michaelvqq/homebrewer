@@ -5,6 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Avatar } from "@/components/house/house-scene";
+import { mergeHouseUpdate } from "@/lib/house/sync";
 
 export type HouseRow = Database["public"]["Tables"]["houses"]["Row"];
 export type CommentRow = Database["public"]["Tables"]["comments"]["Row"];
@@ -44,7 +45,7 @@ export function useHouseRoom(opts: {
 
     channel
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "houses", filter: `id=eq.${houseId}` }, (p) =>
-        setHouse(p.new as HouseRow),
+        setHouse((h) => mergeHouseUpdate(h, p.new as HouseRow)),
       )
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments", filter: `house_id=eq.${houseId}` }, (p) =>
         setComments((cs) => (cs.some((c) => c.id === (p.new as CommentRow).id) ? cs : [...cs, p.new as CommentRow])),

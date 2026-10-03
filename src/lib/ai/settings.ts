@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { decryptKey } from "./crypto";
-import { PROVIDER_IDS, type Provider } from "./models";
+import { serverEnv } from "@/lib/env.server";
+import { chooseModel } from "./choose";
+import { tryDecryptKey } from "./crypto";
+import { PROVIDER_IDS, PROVIDERS, type Provider } from "./models";
 import { createModel } from "./provider";
 
 type Client = SupabaseClient<Database>;
@@ -24,11 +26,22 @@ export async function readSettingsView(supabase: Client): Promise<SettingsView> 
   };
 }
 
-// Model instance for the signed-in user, or null when they have no key for their selected provider.
+// Model instance for the signed-in user: their own key, else a shared demo key, else null.
 export async function loadUserModel(supabase: Client) {
   const { data } = await supabase.from("user_settings").select("provider, model, keys").maybeSingle();
   const provider = asProvider(data?.provider);
   const stored = ((data?.keys ?? {}) as StoredKeys)[provider];
-  if (!data || !stored) return null;
-  return { model: createModel(provider, data.model, decryptKey(stored.c)), label: `${provider}/${data.model}` };
+  const choice = chooseModel(
+    { provider, model: data?.model ?? PROVIDERS[provider].models[0], userKey: stored ? tryDecryptKey(stored.c) : null },
+    {
+      anthropic: serverEnv.SHARED_ANTHROPIC_API_KEY,
+      openai: serverEnv.SHARED_OPENAI_API_KEY,
+      google: serverEnv.SHARED_GOOGLE_API_KEY,
+    },
+  );
+  if (!choice) return null;
+  return {
+    model: createModel(choice.provider, choice.model, choice.apiKey),
+    label: `${choice.provider}/${choice.model}${choice.shared ? " (demo key)" : ""}`,
+  };
 }

@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { runChange, runPipeline, say } from "@/lib/ai/pipeline";
 import { roomAt } from "@/lib/house/edits";
 import { houseSpecSchema } from "@/lib/house/spec";
+import { isStaleGenerating, pickRetry } from "@/lib/house/sync";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionError = "unauthorized" | "validation" | "not_found" | "busy" | "server";
@@ -75,7 +76,7 @@ export async function createHouse(_prev: ActionResult | null, formData: FormData
 // Owner-only house fetch; RLS lets anyone signed in read, so ownership is checked here.
 async function ownedHouse(houseId: string, userId: string) {
   const supabase = await createClient();
-  const { data } = await supabase.from("houses").select("id, owner_id, prompt, spec, status").eq("id", houseId).maybeSingle();
+  const { data } = await supabase.from("houses").select("id, owner_id, prompt, spec, status, updated_at").eq("id", houseId).maybeSingle();
   return { supabase, house: data && data.owner_id === userId ? data : null, exists: !!data };
 }
 
@@ -87,20 +88,42 @@ export async function retryHouse(houseId: unknown): Promise<ActionResult> {
 
   const { supabase, house, exists } = await ownedHouse(parsedId.data, user.id);
   if (!house) return { ok: false, error: exists ? "unauthorized" : "not_found" };
-  if (house.status === "generating") return { ok: false, error: "busy", message: "The agents are already working." };
+  if (house.status === "generating" && !isStaleGenerating(house.status, house.updated_at)) {
+    return { ok: false, error: "busy", message: "The agents are already working." };
+  }
 
-  // A failed redesign retries its approved comment; otherwise regenerate from the original prompt.
-  const { data: pending } = await supabase
-    .from("comments")
-    .select("id, body, pos_x, pos_z")
-    .eq("house_id", house.id)
-    .eq("status", "approved")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Replay the latest change request (approved comment or build-chat edit) on the current spec;
+  // only a house that was never built regenerates from the original prompt.
+  const [{ data: comment }, { data: message }] = await Promise.all([
+    supabase
+      .from("comments")
+      .select("id, body, pos_x, pos_z, created_at")
+      .eq("house_id", house.id)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("house_messages")
+      .select("body, created_at")
+      .eq("house_id", house.id)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const last = house.spec ? pickRetry(comment, message) : null;
 
-  await supabase.from("houses").update({ status: "generating", status_message: "Retrying…" }).eq("id", house.id);
-  generateLater(house.id, house.prompt, pending ? { current: house.spec, change: pending.body, commentId: pending.id, focus: focusOf(pending) } : {});
+  await supabase.from("houses").update({ status: "generating", updated_at: new Date().toISOString(), status_message: "Retrying…" }).eq("id", house.id);
+  generateLater(
+    house.id,
+    house.prompt,
+    !last
+      ? {}
+      : last === comment && comment
+        ? { current: house.spec, change: comment.body, commentId: comment.id, focus: focusOf(comment) }
+        : { current: house.spec, change: last.body },
+  );
   return { ok: true, data: undefined };
 }
 
@@ -161,7 +184,7 @@ export async function moderateComment(commentId: unknown, decision: unknown): Pr
   if (house.status === "generating") return { ok: false, error: "busy", message: "Wait for the current redesign to finish." };
   await supabase.from("comments").update({ status: "approved" }).eq("id", comment.id);
   await say(supabase, house.id, "user", `Approved ${comment.author_name}'s suggestion: “${comment.body}”`);
-  await supabase.from("houses").update({ status: "generating", status_message: "Agents are reading the feedback…" }).eq("id", house.id);
+  await supabase.from("houses").update({ status: "generating", updated_at: new Date().toISOString(), status_message: "Agents are reading the feedback…" }).eq("id", house.id);
   generateLater(house.id, house.prompt, { current: house.spec, change: comment.body, commentId: comment.id, focus: focusOf(comment) });
   return { ok: true, data: undefined };
 }
@@ -203,7 +226,7 @@ export async function liveEdit(input: unknown): Promise<ActionResult> {
   if (!house.spec) return { ok: false, error: "validation", message: "The house isn't built yet." };
 
   await say(supabase, house.id, "user", parsed.data.text);
-  await supabase.from("houses").update({ status: "generating", status_message: "Router is reading your edit…" }).eq("id", house.id);
+  await supabase.from("houses").update({ status: "generating", updated_at: new Date().toISOString(), status_message: "Router is reading your edit…" }).eq("id", house.id);
   generateLater(house.id, house.prompt, { current: house.spec, change: parsed.data.text });
   return { ok: true, data: undefined };
 }
