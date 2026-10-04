@@ -16,12 +16,16 @@ const at = (name: string) => {
 type Seg = { from: number; to: number; seconds?: number; caption: string; sub?: string };
 const SEGS: Seg[] = [
   { from: at("start") + 0.5, to: at("design-clicked"), seconds: 9, caption: "Maya and Sam, two laptops, two accounts", sub: "Maya describes the home she wants." },
-  { from: at("design-clicked"), to: at("friend-joined") + 2, caption: "Maya hits Design", sub: "The architect agent starts planning live." },
-  { from: at("friend-joined") + 2, to: at("built"), seconds: 22, caption: "Sam opens the link and joins", sub: "Both watch the agents build every room, storey and yard in realtime." },
-  { from: at("built"), to: at("suggestion-posted") + 1, seconds: 10, caption: "Sam suggests an idea", sub: "“Add a hot tub and lounge chairs by the pool”" },
-  { from: at("suggestion-posted") + 1, to: at("approved") + 1, seconds: 6, caption: "Maya sees it instantly and approves", sub: "Supabase Realtime pushes the suggestion to her screen." },
-  { from: at("approved") + 1, to: at("redesigned") + 2, seconds: 14, caption: "The agents build it, live for both", sub: "Every change lands in Postgres and streams to everyone in the house." },
-  { from: at("redesigned") + 2, to: at("chat-done") + 1.5, seconds: 10, caption: "Quick edits from the build chat", sub: "“Make the living room walls sage green”" },
+  // Waits are cut to ~1.5 s of the agents working, then jump straight to the result.
+  { from: at("design-clicked"), to: at("design-clicked") + 1.5, caption: "Maya hits Design", sub: "The architect agent starts planning." },
+  { from: at("friend-joined") + 1.5, to: at("friend-joined") + 3, caption: "Sam opens the link and joins", sub: "Both watch the agents work, live." },
+  { from: at("built") - 0.3, to: at("built") + 4, caption: "The whole house lands for both", sub: "23 rooms, two storeys, a pool and 102 pieces of furniture." },
+  { from: at("built") + 4, to: at("suggestion-posted") + 1, seconds: 9, caption: "Sam suggests an idea", sub: "“Add a hot tub and lounge chairs by the pool”" },
+  { from: at("suggestion-posted") + 1, to: at("approved") + 1, seconds: 5, caption: "Maya sees it instantly and approves", sub: "Supabase Realtime pushes the suggestion to her screen." },
+  { from: at("approved") + 1, to: at("approved") + 2.5, caption: "The agents get to work", sub: "Every change lands in Postgres and streams to everyone in the house." },
+  { from: at("redesigned") - 0.3, to: at("redesigned") + 2, caption: "Rebuilt live for both", sub: "A lounger now sits by the pool." },
+  { from: at("redesigned") + 2, to: at("chat-edit") + 1.5, seconds: 4, caption: "Quick edits from the build chat", sub: "“Make the living room walls sage green”" },
+  { from: at("chat-done") - 0.3, to: at("chat-done") + 1.5, caption: "Done in seconds", sub: "Both windows update together." },
   { from: at("chat-done") + 1.5, to: at("end"), seconds: 8, caption: "Maya lifts the roof to look inside" },
 ];
 const plan = SEGS.map((s) => {
@@ -30,8 +34,8 @@ const plan = SEGS.map((s) => {
   return { ...s, rate: src / shown, frames: Math.round(shown * FPS) };
 });
 
-const INTRO = 4 * FPS;
-const OUTRO = 8 * FPS;
+const INTRO = 5 * FPS;
+const OUTRO = 10 * FPS;
 export const COLLAB_TOTAL = INTRO + plan.reduce((a, p) => a + p.frames, 0) + OUTRO;
 
 const fade = (frame: number, d: number) => interpolate(frame, [0, 10, d - 10, d], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
