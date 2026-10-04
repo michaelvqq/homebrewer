@@ -13,20 +13,21 @@ const at = (name: string) => {
 };
 
 // Source ranges (seconds of the recording) and how long each should play on screen.
-type Seg = { from: number; to: number; seconds?: number; caption: string; sub?: string };
+// A segment with a caption starts a beat; segments without one continue it, so the caption stays up
+// across the cuts. Waits are cut to ~1.5 s of the agents working, then jump straight to the result.
+type Seg = { from: number; to: number; seconds?: number; caption?: string; sub?: string };
 const SEGS: Seg[] = [
   { from: at("start") + 0.5, to: at("design-clicked"), seconds: 9, caption: "Maya and Sam, two laptops, two accounts", sub: "Maya describes the home she wants." },
-  // Waits are cut to ~1.5 s of the agents working, then jump straight to the result.
-  { from: at("design-clicked"), to: at("design-clicked") + 1.5, caption: "Maya hits Design", sub: "The architect agent starts planning." },
-  { from: at("friend-joined") + 1.5, to: at("friend-joined") + 3, caption: "Sam opens the link and joins", sub: "Both watch the agents work, live." },
-  { from: at("built") - 0.3, to: at("built") + 4, caption: "The whole house lands for both", sub: "23 rooms, two storeys, a pool and 102 pieces of furniture." },
-  { from: at("built") + 4, to: at("suggestion-posted") + 1, seconds: 9, caption: "Sam suggests an idea", sub: "“Add a hot tub and lounge chairs by the pool”" },
+  { from: at("design-clicked"), to: at("design-clicked") + 2, caption: "Maya hits Design and Sam opens the link", sub: "Both watch the agents start building, live." },
+  { from: at("friend-joined") + 1.5, to: at("friend-joined") + 3.5 },
+  { from: at("built") - 0.3, to: at("built") + 4.5, caption: "The whole house lands for both", sub: "23 rooms, two storeys, a pool and 102 pieces of furniture." },
+  { from: at("built") + 4.5, to: at("suggestion-posted") + 1, seconds: 9, caption: "Sam suggests an idea", sub: "“Add a hot tub and lounge chairs by the pool”" },
   { from: at("suggestion-posted") + 1, to: at("approved") + 1, seconds: 5, caption: "Maya sees it instantly and approves", sub: "Supabase Realtime pushes the suggestion to her screen." },
-  { from: at("approved") + 1, to: at("approved") + 2.5, caption: "The agents get to work", sub: "Every change lands in Postgres and streams to everyone in the house." },
-  { from: at("redesigned") - 0.3, to: at("redesigned") + 2, caption: "Rebuilt live for both", sub: "A lounger now sits by the pool." },
-  { from: at("redesigned") + 2, to: at("chat-edit") + 1.5, seconds: 4, caption: "Quick edits from the build chat", sub: "“Make the living room walls sage green”" },
-  { from: at("chat-done") - 0.3, to: at("chat-done") + 1.5, caption: "Done in seconds", sub: "Both windows update together." },
-  { from: at("chat-done") + 1.5, to: at("end"), seconds: 8, caption: "Maya lifts the roof to look inside" },
+  { from: at("approved") + 1, to: at("approved") + 2.5, caption: "The agents rebuild it, live for both", sub: "A lounger now sits by the pool, in both windows." },
+  { from: at("redesigned") - 0.3, to: at("redesigned") + 3 },
+  { from: at("redesigned") + 3, to: at("chat-edit") + 1.5, seconds: 4, caption: "Quick edits from the build chat", sub: "“Make the living room walls sage green”, done in seconds." },
+  { from: at("chat-done") - 0.3, to: at("chat-done") + 2 },
+  { from: at("chat-done") + 2, to: at("end"), seconds: 8, caption: "Maya lifts the roof to look inside" },
 ];
 const plan = SEGS.map((s) => {
   const src = s.to - s.from;
@@ -91,26 +92,36 @@ const Title: React.FC<{ d: number; title: string; lines: string[]; kicker?: stri
   );
 };
 
+// Where each segment starts in the video, and each caption beat spanning its continuation segments.
+const starts = plan.map((_, i) => INTRO + plan.slice(0, i).reduce((a, p) => a + p.frames, 0));
+const beats = plan.flatMap((p, i) => {
+  if (!p.caption) return [];
+  let end = i + 1;
+  while (end < plan.length && !plan[end].caption) end++;
+  const frames = plan.slice(i, end).reduce((a, q) => a + q.frames, 0);
+  return [{ title: p.caption, sub: p.sub, rate: p.rate, from: starts[i], frames }];
+});
+const cursor = INTRO + plan.reduce((a, p) => a + p.frames, 0);
+
 export const Collab: React.FC = () => {
-  let cursor = INTRO;
   return (
     <AbsoluteFill style={{ background: INK }}>
       <Sequence durationInFrames={INTRO}>
         <Title d={INTRO} kicker="Supabase Select 2026 Hackathon" title="Homebrewer" lines={["Design and build a home together, live, with AI agents."]} />
       </Sequence>
-      {plan.map((p) => {
-        const from = cursor;
-        cursor += p.frames;
-        return (
-          <Sequence key={p.caption} from={from} durationInFrames={p.frames}>
-            <AbsoluteFill style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 7 }}>
-              <Pane src="owner.webm" label="Maya · owner" from={p.from} rate={p.rate} />
-              <Pane src="friend.webm" label="Sam · friend" from={p.from} rate={p.rate} />
-            </AbsoluteFill>
-            <Caption title={p.caption} sub={p.sub} duration={p.frames} rate={p.rate} />
-          </Sequence>
-        );
-      })}
+      {plan.map((p, i) => (
+        <Sequence key={i} from={starts[i]} durationInFrames={p.frames}>
+          <AbsoluteFill style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 7 }}>
+            <Pane src="owner.webm" label="Maya · owner" from={p.from} rate={p.rate} />
+            <Pane src="friend.webm" label="Sam · friend" from={p.from} rate={p.rate} />
+          </AbsoluteFill>
+        </Sequence>
+      ))}
+      {beats.map((b) => (
+        <Sequence key={b.title} from={b.from} durationInFrames={b.frames}>
+          <Caption title={b.title} sub={b.sub} duration={b.frames} rate={b.rate} />
+        </Sequence>
+      ))}
       <Sequence from={cursor} durationInFrames={OUTRO}>
         <Title
           d={OUTRO}
