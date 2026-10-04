@@ -1,0 +1,54 @@
+[
+  {
+    "name": "start",
+    "t": 0.509
+  },
+  {
+    "name": "signed-in",
+    "t": 7.607
+  },
+  {
+    "name": "design-clicked",
+    "t": 12.049
+  },
+  {
+    "name": "house-page",
+    "t": 13.762
+  },
+  {
+    "name": "friend-joined",
+    "t": 18.563
+  },
+  {
+    "name": "built",
+    "t": 268.935
+  },
+  {
+    "name": "suggestion-posted",
+    "t": 279.99
+  },
+  {
+    "name": "approved",
+    "t": 285.163
+  },
+  {
+    "name": "redesigned",
+    "t": 293.575
+  },
+  {
+    "name": "chat-edit",
+    "t": 300.814
+  },
+  {
+    "name": "chat-done",
+    "t": 307.569
+  },
+  {
+    "name": "roof-off",
+    "t": 311.195
+  },
+  {
+    "name": "end",
+    "t": 317.199
+  }
+]
